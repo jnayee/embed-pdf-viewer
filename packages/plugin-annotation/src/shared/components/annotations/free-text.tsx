@@ -99,7 +99,7 @@ export function FreeText({
         width: annotation.object.rect.size.width * scale,
         height: annotation.object.rect.size.height * scale,
         cursor: isSelected && !isEditing ? 'move' : 'default',
-        pointerEvents: isSelected && !isEditing ? 'none' : 'auto',
+        pointerEvents: !onClick ? 'none' : isSelected && !isEditing ? 'none' : 'auto',
         zIndex: 2,
         opacity: appearanceActive ? 0 : 1,
       }}
@@ -128,7 +128,7 @@ export function FreeText({
           height: needsComp ? `${invScalePercent}%` : '100%',
           lineHeight: '1.18',
           overflow: 'hidden',
-          cursor: isEditing ? 'text' : 'pointer',
+          cursor: isEditing ? 'text' : onClick ? 'pointer' : 'default',
           outline: 'none',
           transform: needsComp ? `scale(${scaleComp})` : undefined,
           transformOrigin: 'top left',

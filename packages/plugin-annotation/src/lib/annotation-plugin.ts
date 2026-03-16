@@ -50,6 +50,7 @@ import {
   UnifiedRotateState,
   UnifiedRotateEvent,
   UnifiedRotateParticipant,
+  LockMode,
 } from './types';
 import {
   setAnnotations,
@@ -71,6 +72,8 @@ import {
   addTool,
   initAnnotationState,
   cleanupAnnotationState,
+  setLockedAction,
+  syncAnnotationObject as syncAnnotationObjectAction,
 } from './actions';
 import {
   InteractionManagerCapability,
@@ -110,7 +113,13 @@ import {
   textHandlerFactory,
   textMarkupSelectionHandler,
 } from './handlers';
-import { rectsIntersect, isSidebarAnnotation } from './helpers';
+import {
+  rectsIntersect,
+  isSidebarAnnotation,
+  getAnnotationCategories,
+  isCategoryLocked,
+  hasLockedFlag,
+} from './helpers';
 import { TransformContext } from './patching/patch-registry';
 import {
   getRectCenter,
@@ -178,7 +187,7 @@ export class AnnotationPlugin extends BasePlugin<
 
   protected override onDocumentLoadingStarted(documentId: string): void {
     // Initialize annotation state for this document
-    this.dispatch(initAnnotationState(documentId, initialDocumentState()));
+    this.dispatch(initAnnotationState(documentId, initialDocumentState(this.config)));
 
     // Initialize per-document tracking
     this.pendingContexts.set(documentId, new Map());
@@ -279,9 +288,10 @@ export class AnnotationPlugin extends BasePlugin<
         .filter((ta): ta is TrackedAnnotation => ta !== undefined)
         .filter((ta) => isSidebarAnnotation(ta));
 
-      // Find annotations that intersect with the marquee rect
+      // Find annotations that intersect with the marquee rect (excluding locked)
       const selectedIds = pageAnnotations
         .filter((ta) => rectsIntersect(rect, ta.object.rect))
+        .filter((ta) => !this.isAnnotationLocked(ta.object, documentId))
         .map((ta) => ta.object.id);
 
       // Expand selection to include full groups
@@ -395,6 +405,18 @@ export class AnnotationPlugin extends BasePlugin<
       getGroupMembers: (id, documentId) => this.getGroupMembersMethod(id, documentId),
       isInGroup: (id, documentId) => this.isInGroupMethod(id, documentId),
 
+      // Locking
+      setLocked: (mode, documentId) => this.setLocked(mode, documentId),
+      getLocked: (documentId) => this.getLocked(documentId),
+      isAnnotationLocked: (annotation, documentId) =>
+        this.isAnnotationLocked(annotation, documentId),
+      isCategoryLocked: (category, documentId) => this.isCategoryLockedMethod(category, documentId),
+      isToolLocked: (toolId, documentId) => this.isToolLockedMethod(toolId, documentId),
+
+      // Sync (lightweight state update without commit)
+      syncAnnotationObject: (id, patch, documentId) =>
+        this.syncAnnotationObject(id, patch, documentId),
+
       // Document-scoped operations
       forDocument: (documentId) => this.createAnnotationScope(documentId),
 
@@ -468,6 +490,12 @@ export class AnnotationPlugin extends BasePlugin<
       getGroupMembers: (id) => this.getGroupMembersMethod(id, documentId),
       isInGroup: (id) => this.isInGroupMethod(id, documentId),
       getGroupingAction: () => this.getGroupingActionMethod(documentId),
+      setLocked: (mode) => this.setLocked(mode, documentId),
+      getLocked: () => this.getLocked(documentId),
+      isAnnotationLocked: (annotation) => this.isAnnotationLocked(annotation, documentId),
+      isCategoryLocked: (category) => this.isCategoryLockedMethod(category, documentId),
+      isToolLocked: (toolId) => this.isToolLockedMethod(toolId, documentId),
+      syncAnnotationObject: (id, patch) => this.syncAnnotationObject(id, patch, documentId),
       onStateChange: (listener: Listener<AnnotationDocumentState>) =>
         this.state$.on((event) => {
           if (event.documentId === documentId) listener(event.state);
@@ -618,6 +646,7 @@ export class AnnotationPlugin extends BasePlugin<
   private getAllAnnotations(documentId: string, doc: PdfDocumentObject) {
     const task = this.engine.getAllAnnotations(doc);
     task.wait((annotations) => {
+      console.log('all annotations', annotations);
       this.dispatch(setAnnotations(documentId, annotations));
 
       // Mark initial load as complete
@@ -1057,6 +1086,9 @@ export class AnnotationPlugin extends BasePlugin<
   private selectAnnotation(pageIndex: number, id: string, documentId?: string) {
     const docId = documentId ?? this.getActiveDocumentId();
 
+    const ta = this.getAnnotationById(id, docId);
+    if (ta && this.isAnnotationLocked(ta.object, docId)) return;
+
     // Check if the annotation is part of a group
     if (this.isInGroupMethod(id, docId)) {
       // Select all group members
@@ -1113,6 +1145,10 @@ export class AnnotationPlugin extends BasePlugin<
 
   private toggleSelectionMethod(pageIndex: number, id: string, documentId?: string) {
     const docId = documentId ?? this.getActiveDocumentId();
+
+    const ta = this.getAnnotationById(id, docId);
+    if (ta && this.isAnnotationLocked(ta.object, docId)) return;
+
     const docState = this.getDocumentState(docId);
 
     if (docState.selectedUids.includes(id)) {
@@ -1133,6 +1169,10 @@ export class AnnotationPlugin extends BasePlugin<
 
   private addToSelectionMethod(pageIndex: number, id: string, documentId?: string) {
     const docId = documentId ?? this.getActiveDocumentId();
+
+    const ta = this.getAnnotationById(id, docId);
+    if (ta && this.isAnnotationLocked(ta.object, docId)) return;
+
     this.dispatch(addToSelection(docId, pageIndex, id));
   }
 
@@ -1143,7 +1183,12 @@ export class AnnotationPlugin extends BasePlugin<
 
   private setSelectionMethod(ids: string[], documentId?: string) {
     const docId = documentId ?? this.getActiveDocumentId();
-    this.dispatch(setSelection(docId, ids));
+    const docState = this.getDocumentState(docId);
+    const filtered = ids.filter((id) => {
+      const ta = docState.byUid[id];
+      return !ta || !this.isAnnotationLocked(ta.object, docId);
+    });
+    this.dispatch(setSelection(docId, filtered));
   }
 
   // ─────────────────────────────────────────────────────────
@@ -2430,6 +2475,58 @@ export class AnnotationPlugin extends BasePlugin<
       }
     }
     return bestTool;
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Locking
+  // ─────────────────────────────────────────────────────────
+
+  public setLocked(mode: LockMode, documentId?: string): void {
+    const docId = documentId ?? this.getActiveDocumentId();
+    this.dispatch(setLockedAction(docId, mode));
+
+    // Deselect any annotations that are now locked
+    const updatedDocState = this.getDocumentState(docId);
+    const lockedSelected = updatedDocState.selectedUids.filter((uid) => {
+      const ta = updatedDocState.byUid[uid];
+      if (!ta) return false;
+      return this.isAnnotationLocked(ta.object, docId);
+    });
+    if (lockedSelected.length > 0) {
+      const remaining = updatedDocState.selectedUids.filter((uid) => !lockedSelected.includes(uid));
+      this.dispatch(setSelection(docId, remaining));
+    }
+  }
+
+  public getLocked(documentId?: string): LockMode {
+    return this.getDocumentState(documentId).locked;
+  }
+
+  public isAnnotationLocked(annotation: PdfAnnotationObject, documentId?: string): boolean {
+    if (hasLockedFlag(annotation)) return true;
+    const tool = this.findToolForAnnotation(annotation);
+    const categories = getAnnotationCategories(tool);
+    return isCategoryLocked(categories, this.getLocked(documentId));
+  }
+
+  public isCategoryLockedMethod(category: string, documentId?: string): boolean {
+    return isCategoryLocked([category], this.getLocked(documentId));
+  }
+
+  public isToolLockedMethod(toolId: string, documentId?: string): boolean {
+    const tool = this.getTool(toolId);
+    if (!tool) return false;
+    const categories = getAnnotationCategories(tool);
+    return isCategoryLocked(categories, this.getLocked(documentId));
+  }
+
+  public syncAnnotationObject(
+    id: string,
+    patch: Partial<PdfAnnotationObject>,
+    documentId?: string,
+  ): void {
+    const docId = documentId ?? this.getActiveDocumentId();
+    this.dispatch(syncAnnotationObjectAction(docId, id, patch));
   }
 
   /**

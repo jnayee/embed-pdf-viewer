@@ -100,6 +100,7 @@ type MessageType =
   | 'getPageAnnoWidgets'
   | 'setFormFieldValue'
   | 'setFormFieldState'
+  | 'regenerateWidgetAppearances'
   | 'flattenPage'
   | 'extractPages'
   | 'extractText'
@@ -477,6 +478,14 @@ export class RemoteExecutor implements IPdfiumExecutor {
     field: PdfWidgetAnnoField,
   ): PdfTask<boolean> {
     return this.send<boolean>('setFormFieldState', [doc, page, annotation, field]);
+  }
+
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean> {
+    return this.send<boolean>('regenerateWidgetAppearances', [doc, page, annotationIds]);
   }
 
   flattenPage(

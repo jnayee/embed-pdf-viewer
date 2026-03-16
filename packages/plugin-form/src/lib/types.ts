@@ -10,6 +10,11 @@ import {
 
 export interface FormPluginConfig extends BasePluginConfig {}
 
+export interface FieldGroupEntry {
+  annotationId: string;
+  pageIndex: number;
+}
+
 export interface RenderWidgetOptions {
   pageIndex: number;
   annotation: PdfWidgetAnnoObject;
@@ -17,7 +22,6 @@ export interface RenderWidgetOptions {
 }
 
 export interface FormDocumentState {
-  fieldWidgets: Record<string, PdfWidgetAnnoObject>;
   selectedFieldId: string | null;
 }
 
@@ -49,6 +53,10 @@ export interface FormScope {
   deselectField(): void;
   getSelectedFieldId(): string | null;
   getState(): FormDocumentState;
+  /** Get all widget entries sharing the same field name (including the given annotation) */
+  getFieldGroup(annotationId: string): FieldGroupEntry[];
+  /** Get sibling widget entries sharing the same field name (excluding the given annotation) */
+  getFieldSiblings(annotationId: string): FieldGroupEntry[];
   onStateChange: EventHook<FormDocumentState>;
   onFieldValueChange: EventHook<FieldValueChangeEvent>;
 }
@@ -66,6 +74,10 @@ export interface FormCapability {
   deselectField(documentId?: string): void;
   getSelectedFieldId(documentId?: string): string | null;
   getState(documentId?: string): FormDocumentState;
+  /** Get all widget entries sharing the same field name (including the given annotation) */
+  getFieldGroup(annotationId: string, documentId?: string): FieldGroupEntry[];
+  /** Get sibling widget entries sharing the same field name (excluding the given annotation) */
+  getFieldSiblings(annotationId: string, documentId?: string): FieldGroupEntry[];
   forDocument(documentId: string): FormScope;
   onStateChange: EventHook<FormStateChangeEvent>;
   onFieldValueChange: EventHook<FieldValueChangeEvent>;

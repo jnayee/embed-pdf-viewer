@@ -28,8 +28,8 @@ export function Text({
         position: 'absolute',
         inset: 0,
         zIndex: 2,
-        pointerEvents: isSelected ? 'none' : 'auto',
-        cursor: isSelected ? 'move' : 'pointer',
+        pointerEvents: !onClick ? 'none' : isSelected ? 'none' : 'auto',
+        cursor: isSelected ? 'move' : onClick ? 'pointer' : 'default',
       }}
       onPointerDown={onClick}
     >

@@ -808,6 +808,12 @@ export const commands: Record<string, Command<State>> = {
 
       interactionScope.activateDefaultMode();
       ui.forDocument(documentId).closeToolbarSlot('top', 'secondary');
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: 'all' });
     },
     active: ({ state, documentId }) => {
       return !isToolbarOpen(state.plugins, documentId, 'top', 'secondary');
@@ -823,6 +829,12 @@ export const commands: Record<string, Command<State>> = {
       if (!ui) return;
 
       ui.setActiveToolbar('top', 'secondary', 'annotation-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: 'exclude', categories: ['markup', 'shape', 'redaction'] });
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'annotation-toolbar');
@@ -838,6 +850,12 @@ export const commands: Record<string, Command<State>> = {
       if (!ui) return;
 
       ui.setActiveToolbar('top', 'secondary', 'shapes-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: 'exclude', categories: ['markup', 'shape', 'redaction'] });
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'shapes-toolbar');
@@ -853,6 +871,12 @@ export const commands: Record<string, Command<State>> = {
       if (!ui) return;
 
       ui.setActiveToolbar('top', 'secondary', 'form-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: 'exclude', categories: ['form'] });
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'form-toolbar');
@@ -930,6 +954,32 @@ export const commands: Record<string, Command<State>> = {
     action: () => {},
   },
 
+  'form:toggle-fill-mode': {
+    id: 'form:toggle-fill-mode',
+    labelKey: 'form.toggleFillMode',
+    icon: 'widgetEdit',
+    categories: ['form', 'form-fill-mode'],
+    action: ({ registry, documentId }) => {
+      const scope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!scope) return;
+      if (scope.isCategoryLocked('form')) {
+        scope.setLocked({ type: 'exclude', categories: ['form'] });
+      } else {
+        scope.setLocked({ type: 'all' });
+      }
+    },
+    active: ({ registry, documentId }) => {
+      const scope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      return !(scope?.isCategoryLocked('form') ?? true);
+    },
+  },
+
   'mode:redact': {
     id: 'mode:redact',
     labelKey: 'mode.redact',
@@ -939,6 +989,12 @@ export const commands: Record<string, Command<State>> = {
       if (!ui) return;
 
       ui.setActiveToolbar('top', 'secondary', 'redaction-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: 'exclude', categories: ['markup', 'shape', 'redaction'] });
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'redaction-toolbar');
@@ -1004,6 +1060,7 @@ export const commands: Record<string, Command<State>> = {
 
       // If there's a selection, create highlights for it
       if (formattedSelection.length > 0) {
+        annotationScope.setLocked({ type: 'exclude', categories: ['markup', 'shape'] });
         for (const sel of formattedSelection) {
           const annotationId = uuidV4();
           const createWithText = (text?: string) => {
@@ -1080,6 +1137,7 @@ export const commands: Record<string, Command<State>> = {
 
       // If there's a selection, create underlines for it
       if (formattedSelection.length > 0) {
+        annotationScope.setLocked({ type: 'exclude', categories: ['markup', 'shape'] });
         for (const sel of formattedSelection) {
           const annotationId = uuidV4();
           const createWithText = (text?: string) => {
@@ -1155,6 +1213,7 @@ export const commands: Record<string, Command<State>> = {
 
       // If there's a selection, create strikeouts for it
       if (formattedSelection.length > 0) {
+        annotationScope.setLocked({ type: 'exclude', categories: ['markup', 'shape'] });
         for (const sel of formattedSelection) {
           const annotationId = uuidV4();
           const createWithText = (text?: string) => {
@@ -1230,6 +1289,7 @@ export const commands: Record<string, Command<State>> = {
 
       // If there's a selection, create squiggly annotations for it
       if (formattedSelection.length > 0) {
+        annotationScope.setLocked({ type: 'exclude', categories: ['markup', 'shape'] });
         for (const sel of formattedSelection) {
           const annotationId = uuidV4();
           const createWithText = (text?: string) => {
@@ -2087,6 +2147,11 @@ export const commands: Record<string, Command<State>> = {
         // - Enables redact selection mode
         // - Selects the last pending item
         // - Clears the text selection
+        registry
+          .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+          ?.provides()
+          .forDocument(documentId)
+          .setLocked({ type: 'exclude', categories: ['redaction'] });
         redactionScope.queueCurrentSelectionAsPending();
         ui.setActiveToolbar('top', 'secondary', 'redaction-toolbar', documentId);
       } else {

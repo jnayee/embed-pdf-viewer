@@ -1,5 +1,5 @@
-import { PDF_FORM_FIELD_FLAG } from '@embedpdf/models';
-import { CSSProperties, FormEvent, useCallback, useEffect, useState } from '@framework';
+import { PDF_FORM_FIELD_FLAG, standardFontCssProperties } from '@embedpdf/models';
+import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from '@framework';
 
 import { TextFieldProps } from '../types';
 import { inputStyle, textareaStyle } from './style';
@@ -8,7 +8,6 @@ const combContainerStyle: CSSProperties = {
   position: 'relative',
   width: '100%',
   height: '100%',
-  border: '1px solid #7f96ed',
   borderRadius: 0,
   boxSizing: 'border-box',
 };
@@ -33,7 +32,6 @@ const combCellStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontFamily: '"Courier New", Courier, monospace',
   pointerEvents: 'none',
 };
 
@@ -57,6 +55,8 @@ interface CombFieldProps {
   cellWidth: number;
   chars: string[];
   caretIndex: number;
+  containerStyle: CSSProperties;
+  cellFontStyle: CSSProperties;
   onChange: (evt: FormEvent) => void;
   onBlur?: () => void;
 }
@@ -73,6 +73,8 @@ function CombField(props: CombFieldProps) {
     cellWidth,
     chars,
     caretIndex,
+    containerStyle,
+    cellFontStyle,
     onChange,
     onBlur,
   } = props;
@@ -88,7 +90,7 @@ function CombField(props: CombFieldProps) {
   const showCaret = caretIndex < maxLen;
 
   return (
-    <div style={combContainerStyle}>
+    <div style={containerStyle}>
       <input
         ref={inputRef}
         required={required}
@@ -107,9 +109,9 @@ function CombField(props: CombFieldProps) {
           key={i}
           style={{
             ...combCellStyle,
+            ...cellFontStyle,
             left: i * cellWidth,
             width: cellWidth,
-            fontSize: 'inherit',
           }}
         >
           {chars[i] || ''}
@@ -129,19 +131,47 @@ function CombField(props: CombFieldProps) {
 }
 
 export function TextField(props: TextFieldProps) {
-  const { annotation, isEditable, onChangeField, onBlur, inputRef } = props;
+  const { annotation, isEditable, onChangeField, onBlur, inputRef, scale } = props;
   const field = annotation.field;
 
   const { flag } = field;
   const name = field.name;
   const value = field.value;
 
+  const [localValue, setLocalValue] = useState(value);
+
   const changeValue = useCallback(
     (evt: FormEvent) => {
       const newValue = (evt.target as HTMLInputElement).value;
+      setLocalValue(newValue);
       onChangeField?.({ ...field, value: newValue });
     },
     [onChangeField, field],
+  );
+
+  const bw = (annotation.strokeWidth ?? 0) * scale;
+  const fontCss = standardFontCssProperties(annotation.fontFamily);
+
+  const visualStyle: CSSProperties = useMemo(
+    () => ({
+      backgroundColor: annotation.color ?? 'transparent',
+      borderStyle: 'solid',
+      borderColor: annotation.strokeColor ?? 'transparent',
+      borderWidth: bw,
+      color: annotation.fontColor,
+      ...fontCss,
+      fontSize: annotation.fontSize * scale,
+      padding: `${bw}px ${bw}px`,
+    }),
+    [
+      annotation.color,
+      annotation.strokeColor,
+      annotation.fontColor,
+      annotation.fontSize,
+      bw,
+      fontCss,
+      scale,
+    ],
   );
 
   const isDisabled = !isEditable || !!(flag & PDF_FORM_FIELD_FLAG.READONLY);
@@ -152,9 +182,23 @@ export function TextField(props: TextFieldProps) {
   const maxLen = field.maxLen;
 
   if (isComb && maxLen) {
-    const cellWidth = (annotation.rect.size.width * props.scale) / maxLen;
-    const chars = (value || '').split('');
+    const cellWidth = (annotation.rect.size.width * scale) / maxLen;
+    const chars = (localValue || '').split('');
     const caretIndex = chars.length;
+
+    const combContainer: CSSProperties = {
+      ...combContainerStyle,
+      backgroundColor: annotation.color ?? 'transparent',
+      borderStyle: 'solid',
+      borderColor: annotation.strokeColor ?? 'transparent',
+      borderWidth: bw,
+    };
+
+    const cellFont: CSSProperties = {
+      color: annotation.fontColor,
+      ...fontCss,
+      fontSize: annotation.fontSize * scale,
+    };
 
     return (
       <CombField
@@ -163,11 +207,13 @@ export function TextField(props: TextFieldProps) {
         disabled={isDisabled}
         password={isPassword}
         name={name}
-        value={value}
+        value={localValue}
         maxLen={maxLen}
         cellWidth={cellWidth}
         chars={chars}
         caretIndex={caretIndex}
+        containerStyle={combContainer}
+        cellFontStyle={cellFont}
         onChange={changeValue}
         onBlur={onBlur}
       />
@@ -181,11 +227,11 @@ export function TextField(props: TextFieldProps) {
       disabled={isDisabled}
       name={name}
       aria-label={name}
-      value={value}
+      value={localValue}
       maxLength={maxLen}
       onChange={changeValue}
       onBlur={onBlur}
-      style={textareaStyle}
+      style={{ ...textareaStyle, ...visualStyle }}
     />
   ) : (
     <input
@@ -195,11 +241,11 @@ export function TextField(props: TextFieldProps) {
       type={isPassword ? 'password' : 'text'}
       name={name}
       aria-label={name}
-      value={value}
+      value={localValue}
       maxLength={maxLen}
       onChange={changeValue}
       onBlur={onBlur}
-      style={inputStyle}
+      style={{ ...inputStyle, ...visualStyle }}
     />
   );
 }

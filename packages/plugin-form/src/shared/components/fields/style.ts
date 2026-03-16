@@ -13,10 +13,8 @@ const baseStyle: CSSProperties = {
 const baseInputStyle: CSSProperties = {
   ...baseStyle,
   borderRadius: 0,
-  backgroundColor: 'transparent',
-  border: '1px solid #7f96ed',
   outline: 'none',
-  fontFamily: '"Courier New", Courier, monospace',
+  boxSizing: 'border-box',
 };
 
 export const checkboxStyle: CSSProperties = {

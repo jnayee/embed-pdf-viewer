@@ -145,7 +145,7 @@ export interface AnnotationRendererProps<T extends PdfAnnotationObject = PdfAnno
   scale: number;
   pageIndex: number;
   documentId: string;
-  onClick: (e: AnnotationInteractionEvent) => void;
+  onClick?: (e: AnnotationInteractionEvent) => void;
   /** When true, AP canvas provides the visual; component should only render hit area */
   appearanceActive: boolean;
 }
@@ -220,6 +220,12 @@ export interface AnnotationRendererEntry<
 
   /** Return true to hide the selection menu for this annotation */
   hideSelectionMenu?: (annotation: T) => boolean;
+
+  /** When true, the annotation is completely hidden when locked (e.g., form widgets defer to the form-filling layer). */
+  hiddenWhenLocked?: boolean;
+
+  /** Optional locked-mode renderer. When the annotation is locked, this replaces `render` inside the container. */
+  renderLocked?: (props: AnnotationRendererProps<T>) => JSX.Element;
 }
 
 /**
@@ -251,6 +257,8 @@ export interface BoxedAnnotationRenderer {
     helpers: SelectOverrideHelpers,
   ) => void;
   hideSelectionMenu?: (annotation: PdfAnnotationObject) => boolean;
+  hiddenWhenLocked?: boolean;
+  renderLocked?: (props: AnnotationRendererProps) => JSX.Element;
 }
 
 /**
@@ -281,5 +289,9 @@ export function createRenderer<T extends PdfAnnotationObject, P = never>(
     hideSelectionMenu: entry.hideSelectionMenu as
       | ((annotation: PdfAnnotationObject) => boolean)
       | undefined,
+    hiddenWhenLocked: entry.hiddenWhenLocked,
+    renderLocked: entry.renderLocked
+      ? (props) => entry.renderLocked!(props as AnnotationRendererProps<T>)
+      : undefined,
   };
 }

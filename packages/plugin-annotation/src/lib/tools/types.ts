@@ -170,6 +170,9 @@ export type AnnotationTool<
   /** Translation key for the tool label, e.g., 'annotation.ink'. Used by the UI for i18n. */
   labelKey?: string;
 
+  /** Category tags for authoring mode control, e.g., `['annotation', 'form']`. */
+  categories?: string[];
+
   /**
    * Determines how well this tool matches an existing annotation.
    * Higher numbers indicate a more specific match.

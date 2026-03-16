@@ -7,7 +7,7 @@ export const useFormCapability = () => useCapability<FormPlugin>(FormPlugin.id);
 
 /**
  * Hook that subscribes to the form plugin's document state for a specific document.
- * Returns fieldWidgets, selectedFieldId and re-renders when they change.
+ * Returns selectedFieldId and re-renders when the state changes.
  */
 export const useFormDocumentState = (documentId: string): FormDocumentState => {
   const { provides } = useFormCapability();

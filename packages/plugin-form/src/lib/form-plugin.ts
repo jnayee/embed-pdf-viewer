@@ -6,6 +6,7 @@ import {
   PluginRegistry,
 } from '@embedpdf/core';
 import {
+  FieldGroupEntry,
   FieldValueChangeEvent,
   FormCapability,
   FormDocumentState,
@@ -19,12 +20,12 @@ import {
   FormAction,
   initFormState,
   cleanupFormState,
-  setFieldWidgetsBatch,
   selectField as selectFieldAction,
   deselectField as deselectFieldAction,
 } from './actions';
 import {
-  PDF_FORM_FIELD_TYPE,
+  PdfAnnotationObject,
+  PdfAnnotationSubtype,
   PdfErrorCode,
   PdfErrorReason,
   PdfTask,
@@ -34,7 +35,11 @@ import {
   Task,
   TaskSequence,
 } from '@embedpdf/models';
-import { AnnotationCapability, AnnotationPlugin } from '@embedpdf/plugin-annotation';
+import {
+  AnnotationCapability,
+  AnnotationEvent,
+  AnnotationPlugin,
+} from '@embedpdf/plugin-annotation';
 import { Command, HistoryCapability, HistoryPlugin } from '@embedpdf/plugin-history';
 import { initialDocumentState } from './reducer';
 import { formTools } from './tools';
@@ -55,6 +60,12 @@ export class FormPlugin extends BasePlugin<
   private readonly state$ = createBehaviorEmitter<FormStateChangeEvent>();
   private readonly fieldValueChange$ = createEmitter<FieldValueChangeEvent>();
 
+  /** Per-document field name index: documentId → (fieldName → FieldGroupEntry[]) */
+  private readonly fieldNameIndex = new Map<string, Map<string, FieldGroupEntry[]>>();
+
+  /** IDs currently being propagated to siblings; prevents recursive loops */
+  private readonly propagationInProgress = new Set<string>();
+
   constructor(id: string, registry: PluginRegistry, _config: FormPluginConfig) {
     super(id, registry);
 
@@ -65,6 +76,7 @@ export class FormPlugin extends BasePlugin<
       for (const tool of formTools) {
         this.annotation.addTool(tool);
       }
+      this.annotation.onAnnotationEvent((event) => this.handleAnnotationEvent(event));
     }
   }
 
@@ -76,6 +88,7 @@ export class FormPlugin extends BasePlugin<
 
   protected override onDocumentClosed(documentId: string): void {
     this.dispatch(cleanupFormState(documentId));
+    this.fieldNameIndex.delete(documentId);
   }
 
   override onStoreUpdated(prev: FormState, next: FormState): void {
@@ -99,6 +112,9 @@ export class FormPlugin extends BasePlugin<
       deselectField: (documentId?) => this.deselectFieldMethod(documentId),
       getSelectedFieldId: (documentId?) => this.getSelectedFieldId(documentId),
       getState: (documentId?) => this.getDocumentState(documentId),
+      getFieldGroup: (annotationId, documentId?) => this.getFieldGroup(annotationId, documentId),
+      getFieldSiblings: (annotationId, documentId?) =>
+        this.getFieldSiblings(annotationId, documentId),
       forDocument: (documentId) => this.createFormScope(documentId),
       onStateChange: this.state$.on,
       onFieldValueChange: this.fieldValueChange$.on,
@@ -115,6 +131,8 @@ export class FormPlugin extends BasePlugin<
       deselectField: () => this.deselectFieldMethod(documentId),
       getSelectedFieldId: () => this.getSelectedFieldId(documentId),
       getState: () => this.getDocumentState(documentId),
+      getFieldGroup: (annotationId) => this.getFieldGroup(annotationId, documentId),
+      getFieldSiblings: (annotationId) => this.getFieldSiblings(annotationId, documentId),
       onStateChange: (listener: Listener<FormDocumentState>) =>
         this.state$.on((event) => {
           if (event.documentId === documentId) listener(event.state);
@@ -126,9 +144,161 @@ export class FormPlugin extends BasePlugin<
     };
   }
 
+  private handleAnnotationEvent(event: AnnotationEvent): void {
+    switch (event.type) {
+      case 'loaded':
+        this.buildFieldNameIndex(event.documentId);
+        break;
+
+      case 'create': {
+        const anno = event.annotation;
+        if (anno.type !== PdfAnnotationSubtype.WIDGET) break;
+        const widget = anno as PdfWidgetAnnoObject;
+        const fieldName = widget.field?.name;
+        if (!fieldName) break;
+        const idx = this.getDocIndex(event.documentId);
+        const group = idx.get(fieldName) ?? [];
+        if (!group.some((e) => e.annotationId === anno.id)) {
+          group.push({ annotationId: anno.id, pageIndex: anno.pageIndex });
+          idx.set(fieldName, group);
+        }
+        break;
+      }
+
+      case 'delete': {
+        const anno = event.annotation;
+        if (anno.type !== PdfAnnotationSubtype.WIDGET) break;
+        const widget = anno as PdfWidgetAnnoObject;
+        const fieldName = widget.field?.name;
+        if (!fieldName) break;
+        const idx = this.fieldNameIndex.get(event.documentId);
+        if (!idx) break;
+        const group = idx.get(fieldName);
+        if (!group) break;
+        const filtered = group.filter((e) => e.annotationId !== anno.id);
+        if (filtered.length === 0) {
+          idx.delete(fieldName);
+        } else {
+          idx.set(fieldName, filtered);
+        }
+        break;
+      }
+
+      case 'update': {
+        if (!event.committed) break;
+        const anno = event.annotation;
+        if (anno.type !== PdfAnnotationSubtype.WIDGET) break;
+
+        if (this.propagationInProgress.has(anno.id)) {
+          this.propagationInProgress.delete(anno.id);
+          break;
+        }
+
+        const patch = event.patch as Partial<PdfWidgetAnnoObject>;
+
+        if (patch.field?.name) {
+          this.buildFieldNameIndex(event.documentId);
+        }
+
+        this.propagateFieldLevelChanges(event.documentId, anno, patch);
+        break;
+      }
+    }
+  }
+
+  private propagateFieldLevelChanges(
+    documentId: string,
+    annotation: PdfAnnotationObject,
+    patch: Partial<PdfWidgetAnnoObject>,
+  ): void {
+    if (!this.annotation || !patch.field) return;
+
+    const fieldPatch = patch.field;
+
+    const siblings = this.getFieldSiblings(annotation.id, documentId);
+    if (siblings.length === 0) return;
+
+    const siblingPatches: Array<{
+      pageIndex: number;
+      id: string;
+      patch: Partial<PdfAnnotationObject>;
+    }> = [];
+
+    for (const sibling of siblings) {
+      this.propagationInProgress.add(sibling.annotationId);
+      siblingPatches.push({
+        pageIndex: sibling.pageIndex,
+        id: sibling.annotationId,
+        patch: { field: { ...fieldPatch } } as Partial<PdfAnnotationObject>,
+      });
+    }
+
+    this.annotation.forDocument(documentId).updateAnnotations(siblingPatches);
+  }
+
+  private buildFieldNameIndex(documentId: string): void {
+    if (!this.annotation) return;
+    const annoState = this.annotation.forDocument(documentId).getState();
+    if (!annoState) return;
+
+    const idx = new Map<string, FieldGroupEntry[]>();
+
+    for (const [pageStr, uids] of Object.entries(annoState.pages)) {
+      const pageIndex = Number(pageStr);
+      for (const uid of uids) {
+        const tracked = annoState.byUid[uid];
+        if (!tracked || tracked.object.type !== PdfAnnotationSubtype.WIDGET) continue;
+        const widget = tracked.object as PdfWidgetAnnoObject;
+        const fieldName = widget.field?.name;
+        if (!fieldName) continue;
+
+        const group = idx.get(fieldName) ?? [];
+        group.push({ annotationId: uid, pageIndex });
+        idx.set(fieldName, group);
+      }
+    }
+
+    this.fieldNameIndex.set(documentId, idx);
+  }
+
   private getDocumentState(documentId?: string): FormDocumentState {
     const id = documentId ?? this.getActiveDocumentId();
     return this.state.documents[id] ?? { ...initialDocumentState };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Field Name Index
+  // ─────────────────────────────────────────────────────────
+
+  private getDocIndex(documentId: string): Map<string, FieldGroupEntry[]> {
+    let idx = this.fieldNameIndex.get(documentId);
+    if (!idx) {
+      idx = new Map();
+      this.fieldNameIndex.set(documentId, idx);
+    }
+    return idx;
+  }
+
+  private getFieldNameForAnnotation(annotationId: string, documentId: string): string | null {
+    const idx = this.fieldNameIndex.get(documentId);
+    if (!idx) return null;
+    for (const [name, entries] of idx) {
+      if (entries.some((e) => e.annotationId === annotationId)) return name;
+    }
+    return null;
+  }
+
+  public getFieldGroup(annotationId: string, documentId?: string): FieldGroupEntry[] {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const fieldName = this.getFieldNameForAnnotation(annotationId, docId);
+    if (!fieldName) return [];
+    return this.getDocIndex(docId).get(fieldName) ?? [];
+  }
+
+  public getFieldSiblings(annotationId: string, documentId?: string): FieldGroupEntry[] {
+    return this.getFieldGroup(annotationId, documentId).filter(
+      (e) => e.annotationId !== annotationId,
+    );
   }
 
   private getPageFormAnnoWidgets(
@@ -186,69 +356,90 @@ export class FormPlugin extends BasePlugin<
 
     seq.execute(
       async () => {
-        // Step 1: Snapshot "before" widget state
-        const beforeWidgets = await seq.run(() => this.engine.getPageAnnoWidgets(doc, page));
+        // 1. Snapshot "before" state for the entire field group
+        const groupEntries = this.getFieldGroup(annotation.id, docId);
+        const pageSet = new Set(groupEntries.map((e) => e.pageIndex));
+        const memberIds = new Set(groupEntries.map((e) => e.annotationId));
 
-        // Step 2: Apply the new field state to the engine
+        const beforeMap = new Map<string, PdfWidgetAnnoObject>();
+        for (const pi of pageSet) {
+          const pg = doc.pages.find((p) => p.index === pi);
+          if (!pg) continue;
+          const widgets = await seq.run(() => this.engine.getPageAnnoWidgets(doc, pg));
+          for (const w of widgets) {
+            if (memberIds.has(w.id)) beforeMap.set(w.id, w);
+          }
+        }
+
+        // 2. Apply field state change to the engine (PDFium propagates to all controls)
         await seq.run(() => this.engine.setFormFieldState(doc, page, annotation, newField));
 
-        // Step 3: Re-fetch to discover side-effects (e.g. radio group mutual exclusion)
-        const afterWidgets = await seq.run(() => this.engine.getPageAnnoWidgets(doc, page));
+        // 3. Regenerate AP and re-read fresh state for all group members across pages
+        const afterMap = new Map<string, { widget: PdfWidgetAnnoObject; pageIndex: number }>();
+        for (const pi of pageSet) {
+          const pg = doc.pages.find((p) => p.index === pi);
+          if (!pg) continue;
+          const pageMemberIds = groupEntries
+            .filter((e) => e.pageIndex === pi)
+            .map((e) => e.annotationId);
 
-        // Step 4: Find all annotations whose state changed
-        const changedIds = this.diffWidgets(beforeWidgets, afterWidgets);
-
-        if (changedIds.length === 0) {
-          resultTask.resolve(true);
-          return;
+          await seq.run(() => this.engine.regenerateWidgetAppearances(doc, pg, pageMemberIds));
+          const widgets = await seq.run(() => this.engine.getPageAnnoWidgets(doc, pg));
+          for (const w of widgets) {
+            if (memberIds.has(w.id)) afterMap.set(w.id, { widget: w, pageIndex: pi });
+          }
         }
 
-        // Build before/after widget snapshot maps for all affected annotations
-        const afterBatch: Record<string, PdfWidgetAnnoObject> = {};
-        const beforeBatch: Record<string, PdfWidgetAnnoObject> = {};
-        for (const id of changedIds) {
-          const afterWidget = afterWidgets.find((w) => w.id === id);
-          const beforeWidget = beforeWidgets.find((w) => w.id === id);
-          if (afterWidget) afterBatch[id] = afterWidget;
-          if (beforeWidget) beforeBatch[id] = beforeWidget;
-        }
-
-        // Emit field-value-change events for all affected annotations
-        const emitChanges = (batch: Record<string, PdfWidgetAnnoObject>) => {
-          for (const id of changedIds) {
-            const widget = batch[id];
-            if (widget) {
-              this.fieldValueChange$.emit({
-                documentId: docId,
-                pageIndex,
-                annotationId: id,
-                widget,
-              });
-            }
+        // 4. Sync all group members to annotation plugin and emit change events
+        const syncAndEmit = (
+          batch: Map<string, { widget: PdfWidgetAnnoObject; pageIndex: number }>,
+        ) => {
+          if (!this.annotation) return;
+          for (const [id, { widget, pageIndex: pi }] of batch) {
+            this.annotation.syncAnnotationObject(id, widget, docId);
+            this.annotation.invalidatePageAppearances(pi, docId);
+            this.fieldValueChange$.emit({
+              documentId: docId,
+              pageIndex: pi,
+              annotationId: id,
+              widget,
+            });
           }
         };
 
-        // Apply a batch of widget snapshots back to the engine.
-        // For toggle fields (radio groups), we apply the widget that should be checked —
-        // PDFium then handles mutual exclusion for the group automatically.
-        const applyToEngine = (batch: Record<string, PdfWidgetAnnoObject>, onDone: () => void) => {
-          const checkedWidget = Object.values(batch).find(
-            (w) => 'isChecked' in w.field && w.field.isChecked,
-          );
-          const targetWidget = checkedWidget ?? Object.values(batch)[0];
-
-          if (targetWidget) {
-            this.engine.setFormFieldState(doc, page, targetWidget, targetWidget.field).wait(
-              () => onDone(),
-              () => onDone(),
-            );
-          } else {
-            onDone();
-          }
-        };
-
-        // Step 5: Build and register history command
+        // 5. Build and register history command
         let isFirstExecution = true;
+
+        const applyToEngine = async (
+          batch: Map<string, { widget: PdfWidgetAnnoObject; pageIndex: number }>,
+        ) => {
+          const checkedEntry = [...batch.values()].find(
+            (e) => 'isChecked' in e.widget.field && e.widget.field.isChecked,
+          );
+          const target = checkedEntry ?? [...batch.values()][0];
+          if (!target) return;
+          const pg = doc.pages.find((p) => p.index === target.pageIndex);
+          if (!pg) return;
+          await new Promise<void>((resolve) => {
+            this.engine.setFormFieldState(doc, pg, target.widget, target.widget.field).wait(
+              () => resolve(),
+              () => resolve(),
+            );
+          });
+          for (const pi of new Set([...batch.values()].map((e) => e.pageIndex))) {
+            const p = doc.pages.find((pp) => pp.index === pi);
+            if (!p) continue;
+            const ids = [...batch.entries()]
+              .filter(([, e]) => e.pageIndex === pi)
+              .map(([id]) => id);
+            await new Promise<void>((resolve) => {
+              this.engine.regenerateWidgetAppearances(doc, p, ids).wait(
+                () => resolve(),
+                () => resolve(),
+              );
+            });
+          }
+        };
 
         const command: Command = {
           execute: () => {
@@ -256,19 +447,22 @@ export class FormPlugin extends BasePlugin<
             isFirstExecution = false;
 
             if (skipEngine) {
-              // First execution: engine is already in the correct state.
-              this.dispatch(setFieldWidgetsBatch(docId, afterBatch));
-              emitChanges(afterBatch);
+              syncAndEmit(afterMap);
             } else {
-              // Redo: re-apply to engine, then update store and emit.
-              this.dispatch(setFieldWidgetsBatch(docId, afterBatch));
-              applyToEngine(afterBatch, () => emitChanges(afterBatch));
+              applyToEngine(afterMap).then(() => syncAndEmit(afterMap));
             }
           },
 
           undo: () => {
-            this.dispatch(setFieldWidgetsBatch(docId, beforeBatch));
-            applyToEngine(beforeBatch, () => emitChanges(beforeBatch));
+            const beforeEntries = new Map<
+              string,
+              { widget: PdfWidgetAnnoObject; pageIndex: number }
+            >();
+            for (const [id, widget] of beforeMap) {
+              const entry = groupEntries.find((e) => e.annotationId === id);
+              if (entry) beforeEntries.set(id, { widget, pageIndex: entry.pageIndex });
+            }
+            applyToEngine(beforeEntries).then(() => syncAndEmit(beforeEntries));
           },
         };
 
@@ -284,42 +478,6 @@ export class FormPlugin extends BasePlugin<
     );
 
     return resultTask;
-  }
-
-  /**
-   * Compare two widget snapshots and return the IDs of annotations whose
-   * state changed. Handles text, toggle, and multi-select choice fields.
-   */
-  private diffWidgets(before: PdfWidgetAnnoObject[], after: PdfWidgetAnnoObject[]): string[] {
-    const changedIds: string[] = [];
-    const afterMap = new Map(after.map((w) => [w.id, w]));
-
-    for (const beforeWidget of before) {
-      const afterWidget = afterMap.get(beforeWidget.id);
-      if (!afterWidget) continue;
-
-      const bField = beforeWidget.field;
-      const aField = afterWidget.field;
-
-      if ('isChecked' in bField && 'isChecked' in aField) {
-        if (bField.isChecked !== aField.isChecked) {
-          changedIds.push(beforeWidget.id);
-        }
-      } else if (
-        bField.type === PDF_FORM_FIELD_TYPE.COMBOBOX ||
-        bField.type === PDF_FORM_FIELD_TYPE.LISTBOX
-      ) {
-        const bOpts = bField.options;
-        const aOpts = (aField as typeof bField).options;
-        if (bOpts.some((opt, i) => opt.isSelected !== aOpts[i]?.isSelected)) {
-          changedIds.push(beforeWidget.id);
-        }
-      } else if (bField.value !== aField.value) {
-        changedIds.push(beforeWidget.id);
-      }
-    }
-
-    return changedIds;
   }
 
   private selectFieldMethod(annotationId: string, documentId?: string): void {

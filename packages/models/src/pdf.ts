@@ -3413,6 +3413,18 @@ export interface PdfEngine<T = Blob> {
     page: PdfPageObject,
   ) => PdfTask<PdfWidgetAnnoObject[]>;
   /**
+   * Regenerate appearance streams for specific widget annotations on a page.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotationIds - NM values of the annotations to regenerate
+   * @returns task indicating whether any appearances were regenerated
+   */
+  regenerateWidgetAppearances: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ) => PdfTask<boolean>;
+  /**
    * Create a annotation on specified page
    * @param doc - pdf document
    * @param page - pdf page
@@ -3848,6 +3860,11 @@ export interface IPdfiumExecutor {
     attachment: PdfAttachmentObject,
   ): PdfTask<ArrayBuffer>;
   getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]>;
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean>;
   setFormFieldValue(
     doc: PdfDocumentObject,
     page: PdfPageObject,

@@ -9,7 +9,7 @@ interface StampProps {
   documentId: string;
   pageIndex: number;
   scale: number;
-  onClick: (e: MouseEvent<HTMLDivElement>) => void;
+  onClick?: (e: MouseEvent<HTMLDivElement>) => void;
 }
 
 export function Stamp({
@@ -29,8 +29,8 @@ export function Stamp({
         width: '100%',
         height: '100%',
         zIndex: 2,
-        pointerEvents: isSelected ? 'none' : 'auto',
-        cursor: 'pointer',
+        pointerEvents: !onClick ? 'none' : isSelected ? 'none' : 'auto',
+        cursor: onClick ? 'pointer' : 'default',
       }}
       onPointerDown={onClick}
     >

@@ -8,7 +8,7 @@ import {
   PdfHighlightAnnoObject,
   Rect,
 } from '@embedpdf/models';
-import { TrackedAnnotation } from './types';
+import { LockMode, TrackedAnnotation } from './types';
 import { AnnotationTool } from './tools/types';
 
 /* ------------------------------------------------------------------ */
@@ -177,4 +177,34 @@ export function isSidebarAnnotation(
     isRedact(a) ||
     isCaret(a)
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Locking Helpers                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Extract the category tags from a tool (returns `[]` for uncategorized). */
+export function getAnnotationCategories(tool: AnnotationTool | null): string[] {
+  return tool?.categories ?? [];
+}
+
+/** Check if the category-based LockMode locks annotations with these categories. */
+export function isCategoryLocked(categories: string[], mode: LockMode): boolean {
+  switch (mode.type) {
+    case 'none':
+      return false;
+    case 'all':
+      return true;
+    case 'include':
+      if (categories.length === 0) return false;
+      return categories.some((cat) => mode.categories.includes(cat));
+    case 'exclude':
+      if (categories.length === 0) return true;
+      return !categories.some((cat) => mode.categories.includes(cat));
+  }
+}
+
+/** Check if the annotation itself has the PDF 'locked' flag (bit 7). */
+export function hasLockedFlag(annotation: PdfAnnotationObject): boolean {
+  return annotation.flags?.includes('locked') ?? false;
 }

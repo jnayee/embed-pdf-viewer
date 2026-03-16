@@ -89,12 +89,14 @@ export function Circle({
         strokeWidth={hitStrokeWidth}
         onPointerDown={onClick}
         style={{
-          cursor: isSelected ? 'move' : 'pointer',
-          pointerEvents: isSelected
+          cursor: isSelected ? 'move' : onClick ? 'pointer' : 'default',
+          pointerEvents: !onClick
             ? 'none'
-            : color === 'transparent'
-              ? 'visibleStroke'
-              : 'visible',
+            : isSelected
+              ? 'none'
+              : color === 'transparent'
+                ? 'visibleStroke'
+                : 'visible',
         }}
       />
       {/* Visual -- hidden when AP active, never interactive */}

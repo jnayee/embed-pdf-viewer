@@ -866,6 +866,32 @@ export class WebWorkerEngine implements PdfEngine {
     return task;
   }
 
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'regenerateWidgetAppearances',
+      doc,
+      page,
+      annotationIds,
+    );
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'regenerateWidgetAppearances', [
+      doc,
+      page,
+      annotationIds,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
   /**
    * {@inheritDoc @embedpdf/models!PdfEngine.flattenPage}
    *

@@ -13,6 +13,7 @@ export const formTextFieldTool = defineAnnotationTool({
   id: 'formTextField' as const,
   name: 'Text Field',
   labelKey: 'form.textfield',
+  categories: ['annotation', 'form'],
   matchScore: (a: PdfAnnotationObject) => {
     if (a.type !== PdfAnnotationSubtype.WIDGET) return 0;
     const widget = a;
@@ -58,6 +59,7 @@ export const formCheckboxTool = defineAnnotationTool({
   id: 'formCheckbox' as const,
   name: 'Checkbox',
   labelKey: 'form.checkbox',
+  categories: ['annotation', 'form'],
   matchScore: (a: PdfAnnotationObject) => {
     if (a.type !== PdfAnnotationSubtype.WIDGET) return 0;
     const widget = a;

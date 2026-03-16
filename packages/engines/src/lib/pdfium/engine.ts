@@ -876,6 +876,41 @@ export class PdfiumNative implements IPdfiumExecutor {
     return PdfTaskHelper.resolve(annotationWidgets);
   }
 
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean> {
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const idSet = new Set(annotationIds);
+    let regenerated = 0;
+
+    ctx.borrowPage(page.index, (pageCtx) => {
+      const count = this.pdfiumModule.FPDFPage_GetAnnotCount(pageCtx.pagePtr);
+      for (let i = 0; i < count; i++) {
+        pageCtx.withAnnotation(i, (annotPtr) => {
+          const nm = this.getAnnotString(annotPtr, 'NM');
+          if (nm && idSet.has(nm)) {
+            this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotPtr);
+            regenerated++;
+          }
+        });
+      }
+      if (regenerated > 0) {
+        this.pdfiumModule.FPDFPage_GenerateContent(pageCtx.pagePtr);
+      }
+    });
+
+    return PdfTaskHelper.resolve(regenerated > 0);
+  }
+
   /**
    * {@inheritDoc @embedpdf/models!PdfEngine.getPageAnnotations}
    *
@@ -1259,8 +1294,6 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     /* 2 ── For rotated vertex types, rotate vertices for PDF storage ────────── */
-    // PDF stores physically rotated vertices so other viewers render correctly.
-    // Our viewer stores unrotated vertices + rotation metadata in EPDFCustom.
     const saveAnnotation = this.prepareAnnotationForSave(annotation);
 
     /* 3 ── wipe previous payload and rebuild fresh one ─────────────────────── */
@@ -1353,7 +1386,6 @@ export class PdfiumNative implements IPdfiumExecutor {
       case PdfAnnotationSubtype.UNDERLINE:
       case PdfAnnotationSubtype.STRIKEOUT:
       case PdfAnnotationSubtype.SQUIGGLY: {
-        /* replace quad-points / colour / strings in one go */
         ok = this.addTextMarkupContent(
           doc,
           page,
@@ -2932,7 +2964,9 @@ export class PdfiumNative implements IPdfiumExecutor {
     if (
       !this.setAnnotationDefaultAppearance(
         annotationPtr,
-        annotation.fontFamily,
+        annotation.fontFamily === PdfStandardFont.Unknown
+          ? PdfStandardFont.Helvetica
+          : annotation.fontFamily,
         annotation.fontSize,
         annotation.fontColor,
       )
@@ -3531,10 +3565,14 @@ export class PdfiumNative implements IPdfiumExecutor {
 
     // Set font properties via default appearance (DA) if provided
     if (annotation.fontFamily !== undefined || annotation.fontSize !== undefined) {
+      const font =
+        annotation.fontFamily == null || annotation.fontFamily === PdfStandardFont.Unknown
+          ? PdfStandardFont.Helvetica
+          : annotation.fontFamily;
       if (
         !this.setAnnotationDefaultAppearance(
           annotationPtr,
-          annotation.fontFamily ?? PdfStandardFont.Helvetica,
+          font,
           annotation.fontSize ?? 12,
           annotation.fontColor ?? '#000000',
         )
@@ -5576,13 +5614,11 @@ export class PdfiumNative implements IPdfiumExecutor {
     fontSize: number,
     color: WebColor,
   ): boolean {
-    // Fallback unknown / non-standard fonts to Helvetica so the write never fails.
-    const resolvedFont = font === PdfStandardFont.Unknown ? PdfStandardFont.Helvetica : font;
-    const { red, green, blue } = webColorToPdfColor(color); // 0-255 ints
+    const { red, green, blue } = webColorToPdfColor(color);
 
     return !!this.pdfiumModule.EPDFAnnot_SetDefaultAppearance(
       annotationPtr,
-      resolvedFont,
+      font,
       fontSize,
       red & 0xff,
       green & 0xff,
@@ -8318,20 +8354,24 @@ export class PdfiumNative implements IPdfiumExecutor {
         return { ...base, type, maxLen };
       }
 
-      case PDF_FORM_FIELD_TYPE.CHECKBOX:
+      case PDF_FORM_FIELD_TYPE.CHECKBOX: {
+        const as = this.getAnnotString(annotationPtr, 'AS');
         return {
           ...base,
           type,
-          isChecked: this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr),
+          isChecked: !!as && as !== 'Off',
         };
+      }
 
-      case PDF_FORM_FIELD_TYPE.RADIOBUTTON:
+      case PDF_FORM_FIELD_TYPE.RADIOBUTTON: {
+        const as = this.getAnnotString(annotationPtr, 'AS');
         return {
           ...base,
           type,
-          isChecked: this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr),
+          isChecked: !!as && as !== 'Off',
           options: this.readWidgetOptions(formHandle, annotationPtr),
         };
+      }
 
       case PDF_FORM_FIELD_TYPE.COMBOBOX:
         return { ...base, type, options: this.readWidgetOptions(formHandle, annotationPtr) };

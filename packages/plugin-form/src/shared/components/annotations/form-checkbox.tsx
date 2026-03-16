@@ -7,7 +7,7 @@ export interface FormCheckboxProps {
   isSelected: boolean;
   scale: number;
   pageIndex: number;
-  onClick: (e: MouseEvent<Element>) => void;
+  onClick?: (e: MouseEvent<Element>) => void;
   style?: CSSProperties;
 }
 

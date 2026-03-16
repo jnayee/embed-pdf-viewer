@@ -97,6 +97,21 @@ export interface RenderAnnotationOptions {
   options?: PdfRenderPageAnnotationOptions;
 }
 
+/**
+ * Controls which annotation categories are locked from UI interaction (selection, drag, resize).
+ * Locked annotations let clicks pass through to layers below (e.g. form-filling).
+ *
+ * - `{ type: 'none' }` -- nothing locked (default, full interaction)
+ * - `{ type: 'all' }` -- everything locked
+ * - `{ type: 'include', categories: [...] }` -- only listed categories are locked
+ * - `{ type: 'exclude', categories: [...] }` -- everything locked except listed categories
+ */
+export type LockMode =
+  | { type: 'none' }
+  | { type: 'all' }
+  | { type: 'include'; categories: string[] }
+  | { type: 'exclude'; categories: string[] };
+
 // Per-document annotation state
 export interface AnnotationDocumentState {
   pages: Record<number, string[]>;
@@ -111,6 +126,7 @@ export interface AnnotationDocumentState {
   selectedUid: string | null;
   activeToolId: string | null;
   hasPendingChanges: boolean;
+  locked: LockMode;
 }
 
 export interface AnnotationState {
@@ -147,6 +163,8 @@ export interface AnnotationPluginConfig extends BasePluginConfig {
   deactivateToolAfterCreate?: boolean;
   /** When true (default false), select the annotation immediately after creation. */
   selectAfterCreate?: boolean;
+  /** Initial lock mode for new documents. Defaults to `{ type: 'none' }` (nothing locked). */
+  locked?: LockMode;
 }
 
 /**
@@ -292,6 +310,21 @@ export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationTo
   /** Get the available grouping action for the current selection */
   getGroupingAction(): GroupingAction;
 
+  // Locking
+  /** Set which annotation categories are locked from UI interaction */
+  setLocked(mode: LockMode): void;
+  /** Get the current lock mode for this document */
+  getLocked(): LockMode;
+  /** Check if a specific annotation is locked (category-based or per-annotation flag) */
+  isAnnotationLocked(annotation: PdfAnnotationObject): boolean;
+  /** Check if a single category is locked under the current mode */
+  isCategoryLocked(category: string): boolean;
+  /** Check if a tool (by ID) is locked under the current mode (resolves tool categories) */
+  isToolLocked(toolId: string): boolean;
+
+  /** Update annotation object state without marking dirty or triggering commits. Used by the form plugin to sync PDFium state to the UI. */
+  syncAnnotationObject(id: string, patch: Partial<PdfAnnotationObject>): void;
+
   onStateChange: EventHook<AnnotationDocumentState>;
   onAnnotationEvent: EventHook<AnnotationEvent>;
   onActiveToolChange: EventHook<ToolUnion<TTools> | null>;
@@ -384,6 +417,25 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
   ) => TrackedAnnotation<PdfAnnotationObject>[];
   /** Check if an annotation is part of a group */
   isInGroup: (annotationId: string, documentId?: string) => boolean;
+
+  // Locking
+  /** Set which annotation categories are locked from UI interaction */
+  setLocked: (mode: LockMode, documentId?: string) => void;
+  /** Get the current lock mode */
+  getLocked: (documentId?: string) => LockMode;
+  /** Check if a specific annotation is locked (category-based or per-annotation flag) */
+  isAnnotationLocked: (annotation: PdfAnnotationObject, documentId?: string) => boolean;
+  /** Check if a single category is locked under the current mode */
+  isCategoryLocked: (category: string, documentId?: string) => boolean;
+  /** Check if a tool (by ID) is locked under the current mode (resolves tool categories) */
+  isToolLocked: (toolId: string, documentId?: string) => boolean;
+
+  /** Update annotation object state without marking dirty or triggering commits. Used by the form plugin to sync PDFium state to the UI. */
+  syncAnnotationObject: (
+    id: string,
+    patch: Partial<PdfAnnotationObject>,
+    documentId?: string,
+  ) => void;
 
   // Document-scoped operations
   forDocument: (documentId: string) => AnnotationScope<TTools>;

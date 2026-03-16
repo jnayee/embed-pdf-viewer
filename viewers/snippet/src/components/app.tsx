@@ -102,7 +102,7 @@ import {
   AttachmentPluginPackage,
   AttachmentPluginConfig,
 } from '@embedpdf/plugin-attachment/preact';
-import { FormPluginPackage, FormPluginConfig, FormLayer } from '@embedpdf/plugin-form/preact';
+import { FormPluginPackage, FormPluginConfig } from '@embedpdf/plugin-form/preact';
 
 import { SchemaToolbar } from '@/ui/schema-toolbar';
 import { SchemaSidebar } from '@/ui/schema-sidebar';
@@ -320,7 +320,7 @@ const DEFAULTS = {
   thumbnails: { width: 150, gap: 10, buffer: 3, labelHeight: 30 } as ThumbnailPluginConfig,
 
   // Content features
-  annotations: {} as AnnotationPluginConfig,
+  annotations: { locked: { type: 'all' } } as AnnotationPluginConfig,
   search: {} as SearchPluginConfig,
   selection: {} as SelectionPluginConfig,
   bookmarks: {} as BookmarkPluginConfig,
@@ -445,7 +445,6 @@ function ViewerLayout({ documentId, tabBarVisibility = 'multiple' }: ViewerLayou
                                     selectionMenu={annotationMenu}
                                     groupSelectionMenu={groupAnnotationMenu}
                                   />
-                                  <FormLayer documentId={documentId} pageIndex={pageIndex} />
                                 </PagePointerProvider>
                               </Rotate>
                             )}

@@ -4,13 +4,11 @@ import {
   FormAction,
   INIT_FORM_STATE,
   CLEANUP_FORM_STATE,
-  SET_FIELD_WIDGETS_BATCH,
   SELECT_FIELD,
   DESELECT_FIELD,
 } from './actions';
 
 export const initialDocumentState: FormDocumentState = {
-  fieldWidgets: {},
   selectedFieldId: null,
 };
 
@@ -35,25 +33,6 @@ export const reducer: Reducer<FormState, FormAction> = (state = initialState, ac
       return {
         ...state,
         documents: remaining,
-      };
-    }
-
-    case SET_FIELD_WIDGETS_BATCH: {
-      const { documentId, batch } = action.payload;
-      const docState = state.documents[documentId];
-      if (!docState) return state;
-      return {
-        ...state,
-        documents: {
-          ...state.documents,
-          [documentId]: {
-            ...docState,
-            fieldWidgets: {
-              ...docState.fieldWidgets,
-              ...batch,
-            },
-          },
-        },
       };
     }
 

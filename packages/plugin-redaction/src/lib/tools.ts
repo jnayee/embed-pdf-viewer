@@ -9,6 +9,7 @@ import { RedactionMode } from './types';
 export const redactTool = defineAnnotationTool({
   id: 'redact',
   name: 'Redact',
+  categories: ['annotation', 'redaction'],
   matchScore: (a: PdfAnnotationObject) => (a.type === PdfAnnotationSubtype.REDACT ? 10 : 0),
   interaction: {
     mode: RedactionMode.Redact,

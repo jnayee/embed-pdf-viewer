@@ -695,6 +695,13 @@ export const viewerUISchema: UISchema = {
               categories: ['panel', 'panel-annotation-style'],
             },
             {
+              type: 'command-button',
+              id: 'toggle-form-fill-mode',
+              commandId: 'form:toggle-fill-mode',
+              variant: 'icon',
+              categories: ['form', 'form-fill-mode'],
+            },
+            {
               type: 'divider',
               id: 'form-tools-divider-2',
               orientation: 'vertical',

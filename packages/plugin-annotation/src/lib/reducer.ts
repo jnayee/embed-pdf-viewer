@@ -20,6 +20,8 @@ import {
   INIT_ANNOTATION_STATE,
   CLEANUP_ANNOTATION_STATE,
   SET_ACTIVE_DOCUMENT,
+  SET_LOCKED,
+  SYNC_ANNOTATION_OBJECT,
 } from './actions';
 import {
   AnnotationPluginConfig,
@@ -51,13 +53,14 @@ const computeSelectedUid = (selectedUids: string[]): string | null =>
   selectedUids.length === 1 ? selectedUids[0] : null;
 
 // Per-document initial state
-export const initialDocumentState = (): AnnotationDocumentState => ({
+export const initialDocumentState = (cfg?: AnnotationPluginConfig): AnnotationDocumentState => ({
   pages: {},
   byUid: {},
   selectedUids: [],
   selectedUid: null,
   activeToolId: null,
   hasPendingChanges: false,
+  locked: cfg?.locked ?? { type: 'none' },
 });
 
 // Helper function to patch an annotation in a document state
@@ -467,6 +470,45 @@ export const reducer: Reducer<AnnotationState, AnnotationAction> = (state, actio
               [pageIndex]: (docState.pages[pageIndex] ?? []).filter((u) => u !== uid),
             },
             byUid: rest,
+          },
+        },
+      };
+    }
+
+    case SET_LOCKED: {
+      const { documentId, mode } = action.payload;
+      const docState = state.documents[documentId];
+      if (!docState) return state;
+
+      return {
+        ...state,
+        documents: {
+          ...state.documents,
+          [documentId]: { ...docState, locked: mode },
+        },
+      };
+    }
+
+    case SYNC_ANNOTATION_OBJECT: {
+      const { documentId, id, patch } = action.payload;
+      const docState = state.documents[documentId];
+      if (!docState) return state;
+      const prev = docState.byUid[id];
+      if (!prev) return state;
+
+      return {
+        ...state,
+        documents: {
+          ...state.documents,
+          [documentId]: {
+            ...docState,
+            byUid: {
+              ...docState.byUid,
+              [id]: {
+                ...prev,
+                object: { ...prev.object, ...patch } as typeof prev.object,
+              },
+            },
           },
         },
       };

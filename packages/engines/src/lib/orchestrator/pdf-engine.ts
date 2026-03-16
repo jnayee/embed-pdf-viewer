@@ -816,6 +816,20 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     );
   }
 
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.regenerateWidgetAppearances(doc, page, annotationIds),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'regenerateWidgetAppearances' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   flattenPage(
     doc: PdfDocumentObject,
     page: PdfPageObject,

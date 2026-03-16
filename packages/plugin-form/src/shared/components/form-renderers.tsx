@@ -8,6 +8,7 @@ import {
 import { createRenderer, BoxedAnnotationRenderer } from '@embedpdf/plugin-annotation/@framework';
 import { FormTextField } from './annotations/form-text-field';
 import { FormCheckbox } from './annotations/form-checkbox';
+import { FormWidgetFillMode } from './form-widget-fill-mode';
 
 export interface WidgetPreviewData {
   rect: Rect;
@@ -50,6 +51,7 @@ export const formRenderers: BoxedAnnotationRenderer[] = [
     ),
     interactionDefaults: { isDraggable: false, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
+    renderLocked: (props) => <FormWidgetFillMode {...props} />,
   }),
   createRenderer<PdfWidgetAnnoObject, WidgetPreviewData>({
     id: 'formCheckbox',
@@ -83,5 +85,6 @@ export const formRenderers: BoxedAnnotationRenderer[] = [
     ),
     interactionDefaults: { isDraggable: false, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
+    renderLocked: (props) => <FormWidgetFillMode {...props} />,
   }),
 ];
