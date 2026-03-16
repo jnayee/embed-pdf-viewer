@@ -1002,14 +1002,21 @@ export class PdfiumNative implements IPdfiumExecutor {
     const pageCtx = ctx.acquirePage(page.index);
 
     let annotationPtr: number;
+    let widgetFormInfoPtr: number | undefined;
+    let widgetFormHandle: number | undefined;
     if (annotation.type === PdfAnnotationSubtype.WIDGET) {
       const widget = annotation as unknown as PdfWidgetAnnoObject;
-      const formHandle = pageCtx.getFormHandle();
+      widgetFormInfoPtr = this.pdfiumModule.PDFiumExt_OpenFormFillInfo();
+      widgetFormHandle = this.pdfiumModule.PDFiumExt_InitFormFillEnvironment(
+        ctx.docPtr,
+        widgetFormInfoPtr,
+      );
+      this.pdfiumModule.FORM_OnAfterLoadPage(pageCtx.pagePtr, widgetFormHandle);
       const fieldName = widget.field?.name ?? '';
       annotationPtr = this.withWString(fieldName, (namePtr) =>
         this.pdfiumModule.EPDFPage_CreateFormField(
           pageCtx.pagePtr,
-          formHandle,
+          widgetFormHandle!,
           widget.field.type,
           namePtr,
         ),
@@ -1171,16 +1178,26 @@ export class PdfiumNative implements IPdfiumExecutor {
         break;
       case PdfAnnotationSubtype.WIDGET: {
         const widget = saveAnnotation as PdfWidgetAnnoObject;
-        switch (widget.field.type) {
-          case PDF_FORM_FIELD_TYPE.TEXTFIELD:
-            isSucceed = this.addTextFieldContent(pageCtx, annotationPtr, widget);
-            break;
-          case PDF_FORM_FIELD_TYPE.CHECKBOX:
-            isSucceed = this.addCheckboxContent(pageCtx, annotationPtr, widget);
-            break;
+        if (widgetFormHandle !== undefined) {
+          switch (widget.field.type) {
+            case PDF_FORM_FIELD_TYPE.TEXTFIELD:
+              isSucceed = this.addTextFieldContent(widgetFormHandle, annotationPtr, widget);
+              break;
+            case PDF_FORM_FIELD_TYPE.CHECKBOX:
+              isSucceed = this.addCheckboxContent(widgetFormHandle, annotationPtr, widget);
+              break;
+          }
         }
         break;
       }
+    }
+
+    if (widgetFormHandle !== undefined) {
+      this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, widgetFormHandle);
+      this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(widgetFormHandle);
+    }
+    if (widgetFormInfoPtr !== undefined) {
+      this.pdfiumModule.PDFiumExt_CloseFormFillInfo(widgetFormInfoPtr);
     }
 
     if (!isSucceed) {
@@ -1436,14 +1453,16 @@ export class PdfiumNative implements IPdfiumExecutor {
       /* ── Widget (form field) ─────────────────────────────────────────────── */
       case PdfAnnotationSubtype.WIDGET: {
         const widget = saveAnnotation as PdfWidgetAnnoObject;
-        switch (widget.field.type) {
-          case PDF_FORM_FIELD_TYPE.TEXTFIELD:
-            ok = this.addTextFieldContent(pageCtx, annotPtr, widget);
-            break;
-          case PDF_FORM_FIELD_TYPE.CHECKBOX:
-            ok = this.addCheckboxContent(pageCtx, annotPtr, widget);
-            break;
-        }
+        pageCtx.withFormHandle((formHandle) => {
+          switch (widget.field.type) {
+            case PDF_FORM_FIELD_TYPE.TEXTFIELD:
+              ok = this.addTextFieldContent(formHandle, annotPtr, widget);
+              break;
+            case PDF_FORM_FIELD_TYPE.CHECKBOX:
+              ok = this.addCheckboxContent(formHandle, annotPtr, widget);
+              break;
+          }
+        });
         break;
       }
 
@@ -1891,177 +1910,85 @@ export class PdfiumNative implements IPdfiumExecutor {
       });
     }
 
-    const formFillInfoPtr = this.pdfiumModule.PDFiumExt_OpenFormFillInfo();
-    const formHandle = this.pdfiumModule.PDFiumExt_InitFormFillEnvironment(
-      ctx.docPtr,
-      formFillInfoPtr,
-    );
-
     const pageCtx = ctx.acquirePage(page.index);
+    try {
+      return pageCtx.withFormHandle((formHandle) => {
+        const annotationPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
+        if (!annotationPtr) {
+          return PdfTaskHelper.reject({
+            code: PdfErrorCode.NotFound,
+            message: 'annotation not found',
+          });
+        }
 
-    this.pdfiumModule.FORM_OnAfterLoadPage(pageCtx.pagePtr, formHandle);
-
-    const annotationPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
-
-    if (!annotationPtr) {
-      pageCtx.release();
-      this.logger.perf(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        'SetFormFieldValue',
-        'End',
-        `${doc.id}-${page.index}`,
-      );
-      return PdfTaskHelper.reject({ code: PdfErrorCode.NotFound, message: 'annotation not found' });
-    }
-
-    if (!this.pdfiumModule.FORM_SetFocusedAnnot(formHandle, annotationPtr)) {
-      this.logger.debug(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        'SetFormFieldValue',
-        'failed to set focused annotation',
-      );
-      this.logger.perf(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        `SetFormFieldValue`,
-        'End',
-        `${doc.id}-${annotation.id}`,
-      );
-      this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-      this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-      pageCtx.release();
-      this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-      this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-      return PdfTaskHelper.reject({
-        code: PdfErrorCode.CantFocusAnnot,
-        message: 'failed to set focused annotation',
-      });
-    }
-
-    switch (value.kind) {
-      case 'text':
-        {
-          if (!this.pdfiumModule.FORM_SelectAllText(formHandle, pageCtx.pagePtr)) {
-            this.logger.debug(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              'SetFormFieldValue',
-              'failed to select all text',
-            );
-            this.logger.perf(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              `SetFormFieldValue`,
-              'End',
-              `${doc.id}-${annotation.id}`,
-            );
-            this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-            this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-            this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-            pageCtx.release();
-            this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-            this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
+        try {
+          if (!this.pdfiumModule.FORM_SetFocusedAnnot(formHandle, annotationPtr)) {
             return PdfTaskHelper.reject({
-              code: PdfErrorCode.CantSelectText,
-              message: 'failed to select all text',
+              code: PdfErrorCode.CantFocusAnnot,
+              message: 'failed to set focused annotation',
             });
           }
-          const length = 2 * (value.text.length + 1);
-          const textPtr = this.memoryManager.malloc(length);
-          this.pdfiumModule.pdfium.stringToUTF16(value.text, textPtr, length);
-          this.pdfiumModule.FORM_ReplaceSelection(formHandle, pageCtx.pagePtr, textPtr);
-          this.memoryManager.free(textPtr);
-        }
-        break;
-      case 'selection':
-        {
-          if (
-            !this.pdfiumModule.FORM_SetIndexSelected(
-              formHandle,
-              pageCtx.pagePtr,
-              value.index,
-              value.isSelected,
-            )
-          ) {
-            this.logger.debug(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              'SetFormFieldValue',
-              'failed to set index selected',
-            );
-            this.logger.perf(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              `SetFormFieldValue`,
-              'End',
-              `${doc.id}-${annotation.id}`,
-            );
-            this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-            this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-            this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-            pageCtx.release();
-            this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-            this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
 
-            return PdfTaskHelper.reject({
-              code: PdfErrorCode.CantSelectOption,
-              message: 'failed to set index selected',
-            });
-          }
-        }
-        break;
-      case 'checked':
-        {
-          const rawChecked = this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr);
-          const currentlyChecked = !!rawChecked;
-          if (currentlyChecked !== value.isChecked) {
-            const kReturn = 0x0d;
-            if (!this.pdfiumModule.FORM_OnChar(formHandle, pageCtx.pagePtr, kReturn, 0)) {
-              this.logger.debug(
-                LOG_SOURCE,
-                LOG_CATEGORY,
-                'SetFormFieldValue',
-                'failed to set field checked',
-              );
-              this.logger.perf(
-                LOG_SOURCE,
-                LOG_CATEGORY,
-                `SetFormFieldValue`,
-                'End',
-                `${doc.id}-${annotation.id}`,
-              );
-              this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-              this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-              this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-              pageCtx.release();
-              this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-              this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-              return PdfTaskHelper.reject({
-                code: PdfErrorCode.CantCheckField,
-                message: 'failed to set field checked',
-              });
+          switch (value.kind) {
+            case 'text': {
+              if (!this.pdfiumModule.FORM_SelectAllText(formHandle, pageCtx.pagePtr)) {
+                this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                return PdfTaskHelper.reject({
+                  code: PdfErrorCode.CantSelectText,
+                  message: 'failed to select all text',
+                });
+              }
+              const length = 2 * (value.text.length + 1);
+              const textPtr = this.memoryManager.malloc(length);
+              this.pdfiumModule.pdfium.stringToUTF16(value.text, textPtr, length);
+              this.pdfiumModule.FORM_ReplaceSelection(formHandle, pageCtx.pagePtr, textPtr);
+              this.memoryManager.free(textPtr);
+              break;
+            }
+            case 'selection': {
+              if (
+                !this.pdfiumModule.FORM_SetIndexSelected(
+                  formHandle,
+                  pageCtx.pagePtr,
+                  value.index,
+                  value.isSelected,
+                )
+              ) {
+                this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                return PdfTaskHelper.reject({
+                  code: PdfErrorCode.CantSelectOption,
+                  message: 'failed to set index selected',
+                });
+              }
+              break;
+            }
+            case 'checked': {
+              const rawChecked = this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr);
+              const currentlyChecked = !!rawChecked;
+              if (currentlyChecked !== value.isChecked) {
+                const kReturn = 0x0d;
+                if (!this.pdfiumModule.FORM_OnChar(formHandle, pageCtx.pagePtr, kReturn, 0)) {
+                  this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                  return PdfTaskHelper.reject({
+                    code: PdfErrorCode.CantCheckField,
+                    message: 'failed to set field checked',
+                  });
+                }
+              }
+              break;
             }
           }
+
+          this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+          this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotationPtr);
+          return PdfTaskHelper.resolve<boolean>(true);
+        } finally {
+          this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
         }
-        break;
+      });
+    } finally {
+      pageCtx.release();
     }
-
-    this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-    this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotationPtr);
-
-    this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-    this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-    pageCtx.release();
-
-    this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-    this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-    return PdfTaskHelper.resolve<boolean>(true);
   }
 
   /**
@@ -2101,64 +2028,87 @@ export class PdfiumNative implements IPdfiumExecutor {
       });
     }
 
-    const formFillInfoPtr = this.pdfiumModule.PDFiumExt_OpenFormFillInfo();
-    const formHandle = this.pdfiumModule.PDFiumExt_InitFormFillEnvironment(
-      ctx.docPtr,
-      formFillInfoPtr,
-    );
-
     const pageCtx = ctx.acquirePage(page.index);
-    this.pdfiumModule.FORM_OnAfterLoadPage(pageCtx.pagePtr, formHandle);
+    try {
+      return pageCtx.withFormHandle((formHandle) => {
+        const annotationPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
+        if (!annotationPtr) {
+          return PdfTaskHelper.reject({
+            code: PdfErrorCode.NotFound,
+            message: 'annotation not found',
+          });
+        }
 
-    const annotationPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
+        try {
+          if (!this.pdfiumModule.FORM_SetFocusedAnnot(formHandle, annotationPtr)) {
+            return PdfTaskHelper.reject({
+              code: PdfErrorCode.CantFocusAnnot,
+              message: 'failed to set focused annotation',
+            });
+          }
 
-    if (!annotationPtr) {
-      pageCtx.release();
-      this.logger.perf(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        'SetFormFieldState',
-        'End',
-        `${doc.id}-${page.index}`,
-      );
-      return PdfTaskHelper.reject({ code: PdfErrorCode.NotFound, message: 'annotation not found' });
-    }
+          switch (field.type) {
+            case PDF_FORM_FIELD_TYPE.TEXTFIELD: {
+              if (!this.pdfiumModule.FORM_SelectAllText(formHandle, pageCtx.pagePtr)) {
+                this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                return PdfTaskHelper.reject({
+                  code: PdfErrorCode.CantSelectText,
+                  message: 'failed to select all text',
+                });
+              }
+              const length = 2 * (field.value.length + 1);
+              const textPtr = this.memoryManager.malloc(length);
+              this.pdfiumModule.pdfium.stringToUTF16(field.value, textPtr, length);
+              this.pdfiumModule.FORM_ReplaceSelection(formHandle, pageCtx.pagePtr, textPtr);
+              this.memoryManager.free(textPtr);
+              break;
+            }
 
-    if (!this.pdfiumModule.FORM_SetFocusedAnnot(formHandle, annotationPtr)) {
-      this.logger.debug(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        'SetFormFieldState',
-        'failed to set focused annotation',
-      );
-      this.logger.perf(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        `SetFormFieldState`,
-        'End',
-        `${doc.id}-${annotation.id}`,
-      );
-      this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-      this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-      pageCtx.release();
-      this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-      this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
+            case PDF_FORM_FIELD_TYPE.CHECKBOX:
+            case PDF_FORM_FIELD_TYPE.RADIOBUTTON: {
+              const rawChecked = this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr);
+              const currentlyChecked = !!rawChecked;
+              if (currentlyChecked !== field.isChecked) {
+                const kReturn = 0x0d;
+                if (!this.pdfiumModule.FORM_OnChar(formHandle, pageCtx.pagePtr, kReturn, 0)) {
+                  this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                  return PdfTaskHelper.reject({
+                    code: PdfErrorCode.CantCheckField,
+                    message: 'failed to set field checked',
+                  });
+                }
+              }
+              break;
+            }
 
-      return PdfTaskHelper.reject({
-        code: PdfErrorCode.CantFocusAnnot,
-        message: 'failed to set focused annotation',
-      });
-    }
+            case PDF_FORM_FIELD_TYPE.COMBOBOX:
+            case PDF_FORM_FIELD_TYPE.LISTBOX: {
+              for (let i = 0; i < field.options.length; i++) {
+                if (
+                  !this.pdfiumModule.FORM_SetIndexSelected(
+                    formHandle,
+                    pageCtx.pagePtr,
+                    i,
+                    field.options[i].isSelected,
+                  )
+                ) {
+                  this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                  return PdfTaskHelper.reject({
+                    code: PdfErrorCode.CantSelectOption,
+                    message: 'failed to set index selected',
+                  });
+                }
+              }
+              break;
+            }
 
-    switch (field.type) {
-      case PDF_FORM_FIELD_TYPE.TEXTFIELD: {
-        if (!this.pdfiumModule.FORM_SelectAllText(formHandle, pageCtx.pagePtr)) {
-          this.logger.debug(
-            LOG_SOURCE,
-            LOG_CATEGORY,
-            'SetFormFieldState',
-            'failed to select all text',
-          );
+            default:
+              break;
+          }
+
+          this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+          this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotationPtr);
+
           this.logger.perf(
             LOG_SOURCE,
             LOG_CATEGORY,
@@ -2166,125 +2116,15 @@ export class PdfiumNative implements IPdfiumExecutor {
             'End',
             `${doc.id}-${annotation.id}`,
           );
-          this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+
+          return PdfTaskHelper.resolve<boolean>(true);
+        } finally {
           this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-          this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-          pageCtx.release();
-          this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-          this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-          return PdfTaskHelper.reject({
-            code: PdfErrorCode.CantSelectText,
-            message: 'failed to select all text',
-          });
         }
-        const length = 2 * (field.value.length + 1);
-        const textPtr = this.memoryManager.malloc(length);
-        this.pdfiumModule.pdfium.stringToUTF16(field.value, textPtr, length);
-        this.pdfiumModule.FORM_ReplaceSelection(formHandle, pageCtx.pagePtr, textPtr);
-        this.memoryManager.free(textPtr);
-        break;
-      }
-
-      case PDF_FORM_FIELD_TYPE.CHECKBOX:
-      case PDF_FORM_FIELD_TYPE.RADIOBUTTON: {
-        const rawChecked = this.pdfiumModule.FPDFAnnot_IsChecked(formHandle, annotationPtr);
-        const currentlyChecked = !!rawChecked;
-        if (currentlyChecked !== field.isChecked) {
-          const kReturn = 0x0d;
-          if (!this.pdfiumModule.FORM_OnChar(formHandle, pageCtx.pagePtr, kReturn, 0)) {
-            this.logger.debug(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              'SetFormFieldState',
-              'failed to set field checked',
-            );
-            this.logger.perf(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              `SetFormFieldState`,
-              'End',
-              `${doc.id}-${annotation.id}`,
-            );
-            this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-            this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-            this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-            pageCtx.release();
-            this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-            this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-            return PdfTaskHelper.reject({
-              code: PdfErrorCode.CantCheckField,
-              message: 'failed to set field checked',
-            });
-          }
-        }
-        break;
-      }
-
-      case PDF_FORM_FIELD_TYPE.COMBOBOX:
-      case PDF_FORM_FIELD_TYPE.LISTBOX: {
-        for (let i = 0; i < field.options.length; i++) {
-          if (
-            !this.pdfiumModule.FORM_SetIndexSelected(
-              formHandle,
-              pageCtx.pagePtr,
-              i,
-              field.options[i].isSelected,
-            )
-          ) {
-            this.logger.debug(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              'SetFormFieldState',
-              'failed to set index selected',
-            );
-            this.logger.perf(
-              LOG_SOURCE,
-              LOG_CATEGORY,
-              `SetFormFieldState`,
-              'End',
-              `${doc.id}-${annotation.id}`,
-            );
-            this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-            this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-            this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-            pageCtx.release();
-            this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-            this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-            return PdfTaskHelper.reject({
-              code: PdfErrorCode.CantSelectOption,
-              message: 'failed to set index selected',
-            });
-          }
-        }
-        break;
-      }
-
-      default:
-        // PUSHBUTTON, SIGNATURE, UNKNOWN, XFA variants — no writable state
-        break;
+      });
+    } finally {
+      pageCtx.release();
     }
-
-    this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-    this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotationPtr);
-    this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
-    this.pdfiumModule.FORM_OnBeforeClosePage(pageCtx.pagePtr, formHandle);
-    pageCtx.release();
-
-    this.pdfiumModule.PDFiumExt_ExitFormFillEnvironment(formHandle);
-    this.pdfiumModule.PDFiumExt_CloseFormFillInfo(formFillInfoPtr);
-
-    this.logger.perf(
-      LOG_SOURCE,
-      LOG_CATEGORY,
-      `SetFormFieldState`,
-      'End',
-      `${doc.id}-${annotation.id}`,
-    );
-
-    return PdfTaskHelper.resolve<boolean>(true);
   }
 
   /**
@@ -2995,7 +2835,7 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   private addTextFieldContent(
-    pageCtx: PageContext,
+    formHandle: number,
     annotationPtr: number,
     annotation: PdfWidgetAnnoObject,
   ): boolean {
@@ -3035,7 +2875,6 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     // 4. Form field flags
-    const formHandle = pageCtx.getFormHandle();
     const userFlags = annotation.field.flag ?? PDF_FORM_FIELD_FLAG.NONE;
     this.pdfiumModule.FPDFAnnot_SetFormFieldFlags(formHandle, annotationPtr, userFlags);
 
@@ -3055,7 +2894,7 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   private addCheckboxContent(
-    pageCtx: PageContext,
+    formHandle: number,
     annotationPtr: number,
     annotation: PdfWidgetAnnoObject,
   ): boolean {
@@ -3083,7 +2922,6 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     // 3. Form field flags
-    const formHandle = pageCtx.getFormHandle();
     const userFlags = annotation.field.flag ?? PDF_FORM_FIELD_FLAG.NONE;
     this.pdfiumModule.FPDFAnnot_SetFormFieldFlags(formHandle, annotationPtr, userFlags);
 
@@ -4804,16 +4642,18 @@ export class PdfiumNative implements IPdfiumExecutor {
    */
   private readPageAnnotations(doc: PdfDocumentObject, ctx: DocumentContext, page: PdfPageObject) {
     return ctx.borrowPage(page.index, (pageCtx) => {
-      const annotationCount = this.pdfiumModule.FPDFPage_GetAnnotCount(pageCtx.pagePtr);
+      return pageCtx.withFormHandle((formHandle) => {
+        const annotationCount = this.pdfiumModule.FPDFPage_GetAnnotCount(pageCtx.pagePtr);
 
-      const annotations: PdfAnnotationObject[] = [];
-      for (let i = 0; i < annotationCount; i++) {
-        pageCtx.withAnnotation(i, (annotPtr) => {
-          const anno = this.readPageAnnotation(doc, ctx.docPtr, page, annotPtr, pageCtx);
-          if (anno) annotations.push(anno);
-        });
-      }
-      return annotations;
+        const annotations: PdfAnnotationObject[] = [];
+        for (let i = 0; i < annotationCount; i++) {
+          pageCtx.withAnnotation(i, (annotPtr) => {
+            const anno = this.readPageAnnotation(doc, ctx.docPtr, page, annotPtr, formHandle);
+            if (anno) annotations.push(anno);
+          });
+        }
+        return annotations;
+      });
     });
   }
 
@@ -4832,16 +4672,18 @@ export class PdfiumNative implements IPdfiumExecutor {
     page: PdfPageObject,
   ): PdfWidgetAnnoObject[] {
     return ctx.borrowPage(page.index, (pageCtx) => {
-      const annotationCount = this.pdfiumModule.FPDFPage_GetAnnotCount(pageCtx.pagePtr);
+      return pageCtx.withFormHandle((formHandle) => {
+        const annotationCount = this.pdfiumModule.FPDFPage_GetAnnotCount(pageCtx.pagePtr);
 
-      const annotations: PdfWidgetAnnoObject[] = [];
-      for (let i = 0; i < annotationCount; i++) {
-        pageCtx.withAnnotation(i, (annotPtr) => {
-          const anno = this.readPageAnnoWidget(doc, page, annotPtr, pageCtx);
-          if (anno) annotations.push(anno);
-        });
-      }
-      return annotations;
+        const annotations: PdfWidgetAnnoObject[] = [];
+        for (let i = 0; i < annotationCount; i++) {
+          pageCtx.withAnnotation(i, (annotPtr) => {
+            const anno = this.readPageAnnoWidget(doc, page, annotPtr, formHandle);
+            if (anno) annotations.push(anno);
+          });
+        }
+        return annotations;
+      });
     });
   }
 
@@ -4872,14 +4714,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       if (!annotPtr) continue;
 
       try {
-        const anno = this.readPageAnnotation(
-          doc,
-          ctx.docPtr,
-          page,
-          annotPtr,
-          undefined,
-          formHandle,
-        );
+        const anno = this.readPageAnnotation(doc, ctx.docPtr, page, annotPtr, formHandle);
         if (anno) out.push(anno);
       } finally {
         this.pdfiumModule.FPDFPage_CloseAnnot(annotPtr);
@@ -4903,7 +4738,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     doc: PdfDocumentObject,
     page: PdfPageObject,
     annotationPtr: number,
-    pageCtx: PageContext,
+    formHandle: number,
   ): PdfWidgetAnnoObject | undefined {
     let index = this.getAnnotString(annotationPtr, 'NM');
     if (!index || !isUuidV4(index)) {
@@ -4916,7 +4751,7 @@ export class PdfiumNative implements IPdfiumExecutor {
 
     if (subType !== PdfAnnotationSubtype.WIDGET) return;
 
-    return this.readPdfWidgetAnno(doc, page, annotationPtr, pageCtx.getFormHandle(), index);
+    return this.readPdfWidgetAnno(doc, page, annotationPtr, formHandle, index);
   }
 
   /*
@@ -4983,7 +4818,7 @@ export class PdfiumNative implements IPdfiumExecutor {
    * @param docPtr - pointer to pdf document
    * @param page - page info
    * @param annotationPtr - pointer to pdf annotation
-   * @param pageCtx - page context
+   * @param formHandle - optional form fill handle for widget annotations
    * @returns pdf annotation
    *
    * @private
@@ -4993,7 +4828,6 @@ export class PdfiumNative implements IPdfiumExecutor {
     docPtr: number,
     page: PdfPageObject,
     annotationPtr: number,
-    pageCtx?: PageContext,
     formHandle?: number,
   ) {
     let index = this.getAnnotString(annotationPtr, 'NM');
@@ -5023,9 +4857,8 @@ export class PdfiumNative implements IPdfiumExecutor {
         break;
       case PdfAnnotationSubtype.WIDGET:
         {
-          const fh = pageCtx?.getFormHandle() ?? formHandle;
-          if (fh !== undefined) {
-            return this.readPdfWidgetAnno(doc, page, annotationPtr, fh, index);
+          if (formHandle !== undefined) {
+            return this.readPdfWidgetAnno(doc, page, annotationPtr, formHandle, index);
           }
         }
         break;
@@ -8817,7 +8650,6 @@ export class PdfiumNative implements IPdfiumExecutor {
 
     const pageCtx = ctx.acquirePage(page.index);
     const shouldRenderForms = options?.withForms ?? false;
-    const formHandle = shouldRenderForms ? pageCtx.getFormHandle() : undefined;
 
     // ---- 2) allocate a BGRA bitmap in WASM
     const heapPtr = this.memoryManager.malloc(bytes);
@@ -8855,22 +8687,23 @@ export class PdfiumNative implements IPdfiumExecutor {
         flags,
       );
 
-      if (formHandle !== undefined) {
-        const formParams = computeFormDrawParams(M, rect, page.size, rotation);
-        const { startX, startY, formsWidth, formsHeight, scaleX, scaleY } = formParams;
+      if (shouldRenderForms) {
+        pageCtx.withFormHandle((formHandle) => {
+          const formParams = computeFormDrawParams(M, rect, page.size, rotation);
+          const { startX, startY, formsWidth, formsHeight } = formParams;
 
-        // Draw form elements using the same effective transform as the page bitmap.
-        this.pdfiumModule.FPDF_FFLDraw(
-          formHandle,
-          bitmapPtr,
-          pageCtx.pagePtr,
-          startX,
-          startY,
-          formsWidth,
-          formsHeight,
-          rotation,
-          flags,
-        );
+          this.pdfiumModule.FPDF_FFLDraw(
+            formHandle,
+            bitmapPtr,
+            pageCtx.pagePtr,
+            startX,
+            startY,
+            formsWidth,
+            formsHeight,
+            rotation,
+            flags,
+          );
+        });
       }
     } finally {
       pageCtx.release();
