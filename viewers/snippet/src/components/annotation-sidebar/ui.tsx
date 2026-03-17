@@ -249,19 +249,25 @@ const STROKES: StrokeItem[] = [
 
 const renderStrokeSvg = (item: StrokeItem) => {
   if (item.cloudyIntensity) {
-    const r = item.cloudyIntensity === 1 ? 4 : 6;
-    const d: string[] = [];
-    let x = 0;
-    d.push(`M 0 6`);
-    while (x < 80) {
-      const nx = Math.min(x + r * 2, 80);
-      const mx = (x + nx) / 2;
-      d.push(`Q ${mx} ${6 - r * 1.3} ${nx} 6`);
-      x = nx;
+    const r = item.cloudyIntensity === 1 ? 3 : 5;
+    const n = Math.ceil(80 / (r * 2));
+    const step = 80 / n;
+    const baseline = r + 1;
+    const viewH = r * 2 + 2;
+    const parts = [`M 0 ${baseline}`];
+    for (let i = 0; i < n; i++) {
+      parts.push(`A ${r} ${r} 0 0 1 ${step * (i + 1)} ${baseline}`);
     }
     return (
-      <svg width="80" height="12" viewBox="0 0 80 12">
-        <path d={d.join(' ')} fill="none" stroke="currentColor" stroke-width="1.5" />
+      <svg width="80" height={viewH} viewBox={`0 0 80 ${viewH}`}>
+        <path
+          d={parts.join(' ')}
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
       </svg>
     );
   }
