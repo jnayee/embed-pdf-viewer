@@ -143,7 +143,7 @@ export function Square({
               pointerEvents: 'none',
               stroke: strokeColor ?? color,
               strokeWidth,
-              strokeLinejoin: 'bevel',
+              strokeLinejoin: 'round',
             }}
           />
         ) : (

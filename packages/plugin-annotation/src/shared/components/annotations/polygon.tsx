@@ -116,7 +116,7 @@ export function Polygon({
                 stroke: strokeColor ?? color,
                 strokeWidth,
                 pointerEvents: 'none',
-                strokeLinejoin: 'bevel',
+                strokeLinejoin: 'round',
               }}
             />
           ) : (

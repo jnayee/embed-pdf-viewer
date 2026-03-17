@@ -4,7 +4,16 @@
  * Framework-agnostic utility that generates SVG path `d` strings for cloudy
  * (scalloped) borders on Rectangle, Ellipse, and Polygon shapes.
  *
- * Ported from Apache PDFBox's CloudyBorder.java implementation.
+ * Derived from Apache PDFBox's CloudyBorder.java:
+ * https://github.com/apache/pdfbox/blob/trunk/pdfbox/src/main/java/org/apache/pdfbox/pdmodel/interactive/annotation/handlers/CloudyBorder.java
+ *
+ * Original code licensed under the Apache License, Version 2.0:
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Substantially modified: ported from Java to TypeScript, adapted for SVG
+ * path output, and reworked curl distribution and merging logic.
+ *
+ * Copyright (c) 2026 CloudPDF / EmbedPDF
  *
  * @module
  */
