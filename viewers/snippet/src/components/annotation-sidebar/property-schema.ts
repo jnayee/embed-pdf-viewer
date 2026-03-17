@@ -38,6 +38,8 @@ export interface PropertyConfig {
   debounce?: boolean;
   /** If true, only show this property when editing an existing annotation (not for tool defaults) */
   editOnly?: boolean;
+  /** If true, show cloudy border options in the stroke style picker */
+  showCloudy?: boolean;
 }
 
 /**
@@ -81,6 +83,12 @@ export const PROPERTY_CONFIGS: Record<string, PropertyConfig> = {
     key: 'strokeStyle',
     type: 'strokeStyle',
     labelKey: 'annotation.borderStyle',
+  },
+  strokeStyleWithCloudy: {
+    key: 'strokeStyle',
+    type: 'strokeStyle',
+    labelKey: 'annotation.borderStyle',
+    showCloudy: true,
   },
   lineEndings: {
     key: 'lineEndings',
@@ -154,7 +162,7 @@ export const ANNOTATION_PROPERTIES: Partial<Record<PdfAnnotationSubtype, string[
     'color',
     'opacity',
     'strokeColor',
-    'strokeStyle',
+    'strokeStyleWithCloudy',
     'strokeWidth',
     'rotation',
   ],
@@ -162,14 +170,14 @@ export const ANNOTATION_PROPERTIES: Partial<Record<PdfAnnotationSubtype, string[
     'color',
     'opacity',
     'strokeColor',
-    'strokeStyle',
+    'strokeStyleWithCloudy',
     'strokeWidth',
     'rotation',
   ],
   [PdfAnnotationSubtype.POLYGON]: [
     'strokeColor',
     'opacity',
-    'strokeStyle',
+    'strokeStyleWithCloudy',
     'strokeWidth',
     'color',
     'rotation',

@@ -110,12 +110,12 @@ export function DynamicSidebar({
     const config = PROPERTY_CONFIGS[propKey];
     if (!config) return undefined;
 
-    // Special case: strokeStyle needs both style and dash array
     if (config.type === 'strokeStyle') {
       const obj = source as any;
       return {
         id: obj.strokeStyle,
         dash: obj.strokeDashArray,
+        ...(config.showCloudy && { cloudyIntensity: obj.cloudyBorderIntensity }),
       };
     }
 
@@ -130,12 +130,15 @@ export function DynamicSidebar({
     const config = PROPERTY_CONFIGS[propKey];
     if (!config) return;
 
-    // Special case: strokeStyle returns both style and dash array
     if (config.type === 'strokeStyle' && typeof value === 'object') {
-      applyPatch({
+      const patch: any = {
         strokeStyle: value.strokeStyle,
         strokeDashArray: value.strokeDashArray,
-      });
+      };
+      if (config.showCloudy) {
+        patch.cloudyBorderIntensity = value.cloudyBorderIntensity ?? 0;
+      }
+      applyPatch(patch);
       return;
     }
 

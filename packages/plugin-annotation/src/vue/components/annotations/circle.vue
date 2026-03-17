@@ -13,7 +13,20 @@
     overflow="visible"
   >
     <!-- Hit area -- always rendered, transparent, wider stroke for mobile -->
+    <path
+      v-if="isCloudy && cloudyPath"
+      :d="cloudyPath.path"
+      fill="transparent"
+      stroke="transparent"
+      :stroke-width="hitStrokeWidth"
+      @pointerdown="onClick"
+      :style="{
+        cursor: isSelected ? 'move' : 'pointer',
+        pointerEvents: isSelected ? 'none' : color === 'transparent' ? 'visibleStroke' : 'visible',
+      }"
+    />
     <ellipse
+      v-else
       :cx="geometry.cx"
       :cy="geometry.cy"
       :rx="geometry.rx"
@@ -28,23 +41,37 @@
       }"
     />
     <!-- Visual -- hidden when AP active, never interactive -->
-    <ellipse
-      v-if="!appearanceActive"
-      :cx="geometry.cx"
-      :cy="geometry.cy"
-      :rx="geometry.rx"
-      :ry="geometry.ry"
-      :fill="color"
-      :opacity="opacity"
-      :style="{
-        pointerEvents: 'none',
-        stroke: strokeColor ?? color,
-        strokeWidth: strokeWidth,
-        ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
-          strokeDasharray: strokeDashArray?.join(','),
-        }),
-      }"
-    />
+    <template v-if="!appearanceActive">
+      <path
+        v-if="isCloudy && cloudyPath"
+        :d="cloudyPath.path"
+        :fill="color"
+        :opacity="opacity"
+        :style="{
+          pointerEvents: 'none',
+          stroke: strokeColor ?? color,
+          strokeWidth: strokeWidth,
+          strokeLinejoin: 'round',
+        }"
+      />
+      <ellipse
+        v-else
+        :cx="geometry.cx"
+        :cy="geometry.cy"
+        :rx="geometry.rx"
+        :ry="geometry.ry"
+        :fill="color"
+        :opacity="opacity"
+        :style="{
+          pointerEvents: 'none',
+          stroke: strokeColor ?? color,
+          strokeWidth: strokeWidth,
+          ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
+            strokeDasharray: strokeDashArray?.join(','),
+          }),
+        }"
+      />
+    </template>
   </svg>
 </template>
 
@@ -54,7 +81,8 @@ export default { inheritAttrs: false };
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PdfAnnotationBorderStyle, Rect } from '@embedpdf/models';
+import { PdfAnnotationBorderStyle, PdfRectDifferences, Rect } from '@embedpdf/models';
+import { generateCloudyEllipsePath } from '@embedpdf/plugin-annotation';
 
 const MIN_HIT_AREA_SCREEN_PX = 20;
 
@@ -71,6 +99,8 @@ const props = withDefaults(
     scale: number;
     onClick?: (e: PointerEvent) => void;
     appearanceActive?: boolean;
+    cloudyBorderIntensity?: number;
+    rectangleDifferences?: PdfRectDifferences;
   }>(),
   {
     color: '#000000',
@@ -79,6 +109,8 @@ const props = withDefaults(
     appearanceActive: false,
   },
 );
+
+const isCloudy = computed(() => (props.cloudyBorderIntensity ?? 0) > 0);
 
 const geometry = computed(() => {
   const outerW = props.rect.size.width;
@@ -94,6 +126,16 @@ const geometry = computed(() => {
     rx: innerW / 2,
     ry: innerH / 2,
   };
+});
+
+const cloudyPath = computed(() => {
+  if (!isCloudy.value) return null;
+  return generateCloudyEllipsePath(
+    { x: 0, y: 0, width: props.rect.size.width, height: props.rect.size.height },
+    props.rectangleDifferences,
+    props.cloudyBorderIntensity!,
+    props.strokeWidth,
+  );
 });
 
 const svgWidth = computed(() => geometry.value.width * props.scale);
