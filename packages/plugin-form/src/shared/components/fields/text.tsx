@@ -1,5 +1,6 @@
 import { PDF_FORM_FIELD_FLAG, standardFontCssProperties } from '@embedpdf/models';
 import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useState } from '@framework';
+import { useIOSZoomPrevention } from '@embedpdf/plugin-annotation/@framework';
 
 import { TextFieldProps } from '../types';
 import { inputStyle, textareaStyle } from './style';
@@ -151,6 +152,7 @@ export function TextField(props: TextFieldProps) {
 
   const bw = (annotation.strokeWidth ?? 0) * scale;
   const fontCss = standardFontCssProperties(annotation.fontFamily);
+  const { adjustedFontPx, wrapperStyle } = useIOSZoomPrevention(annotation.fontSize * scale, true);
 
   const visualStyle: CSSProperties = useMemo(
     () => ({
@@ -160,18 +162,10 @@ export function TextField(props: TextFieldProps) {
       borderWidth: bw,
       color: annotation.fontColor,
       ...fontCss,
-      fontSize: annotation.fontSize * scale,
+      fontSize: adjustedFontPx,
       padding: `${bw}px ${bw}px`,
     }),
-    [
-      annotation.color,
-      annotation.strokeColor,
-      annotation.fontColor,
-      annotation.fontSize,
-      bw,
-      fontCss,
-      scale,
-    ],
+    [annotation.color, annotation.strokeColor, annotation.fontColor, adjustedFontPx, bw, fontCss],
   );
 
   const isDisabled = !isEditable || !!(flag & PDF_FORM_FIELD_FLAG.READONLY);
@@ -197,10 +191,10 @@ export function TextField(props: TextFieldProps) {
     const cellFont: CSSProperties = {
       color: annotation.fontColor,
       ...fontCss,
-      fontSize: annotation.fontSize * scale,
+      fontSize: adjustedFontPx,
     };
 
-    return (
+    const combContent = (
       <CombField
         inputRef={inputRef as (el: HTMLInputElement | null) => void}
         required={isRequired}
@@ -218,9 +212,11 @@ export function TextField(props: TextFieldProps) {
         onBlur={onBlur}
       />
     );
+
+    return wrapperStyle ? <div style={wrapperStyle}>{combContent}</div> : combContent;
   }
 
-  return isMultipleLine ? (
+  const inputContent = isMultipleLine ? (
     <textarea
       ref={inputRef as (el: HTMLTextAreaElement | null) => void}
       required={isRequired}
@@ -248,4 +244,6 @@ export function TextField(props: TextFieldProps) {
       style={{ ...inputStyle, ...visualStyle }}
     />
   );
+
+  return wrapperStyle ? <div style={wrapperStyle}>{inputContent}</div> : inputContent;
 }
