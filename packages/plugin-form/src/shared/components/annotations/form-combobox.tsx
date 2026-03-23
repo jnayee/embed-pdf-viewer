@@ -65,7 +65,6 @@ export function FormCombobox({ annotation, isSelected, scale, onClick, style }: 
           width: 13 * scale,
           minWidth: 13 * scale,
           height: '100%',
-          background: 'rgba(220,220,220,1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

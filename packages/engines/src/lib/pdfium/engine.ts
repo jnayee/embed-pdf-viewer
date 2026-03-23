@@ -7084,8 +7084,8 @@ export class PdfiumNative implements IPdfiumExecutor {
       field,
       ...(exportValue !== undefined && { exportValue }),
       strokeWidth,
-      ...(strokeColor !== undefined && { strokeColor }),
-      ...(color !== undefined && { color }),
+      strokeColor: strokeColor ?? 'transparent',
+      color: color ?? 'transparent',
       ...this.readBaseAnnotationProperties(doc, page, annotationPtr),
     };
   }
