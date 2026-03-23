@@ -6,6 +6,7 @@ export default {
   'plugin-tiling': 'Tiling',
   'plugin-thumbnail': 'Thumbnail',
   'plugin-annotation': 'Annotation',
+  'plugin-form': 'Form',
   'plugin-selection': 'Selection',
   'plugin-zoom': 'Zoom',
   'plugin-rotate': 'Rotate',

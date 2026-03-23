@@ -2546,6 +2546,9 @@ importers:
       '@embedpdf/plugin-export':
         specifier: workspace:*
         version: link:../packages/plugin-export
+      '@embedpdf/plugin-form':
+        specifier: workspace:*
+        version: link:../packages/plugin-form
       '@embedpdf/plugin-history':
         specifier: workspace:*
         version: link:../packages/plugin-history
