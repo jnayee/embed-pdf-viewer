@@ -8841,7 +8841,13 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     // 1b) pre-check: does this annotation have a renderable appearance for the requested mode?
-    const hasAP = !!this.pdfiumModule.EPDFAnnot_HasAppearanceStream(annotPtr, mode);
+    let hasAP = !!this.pdfiumModule.EPDFAnnot_HasAppearanceStream(annotPtr, mode);
+    if (!hasAP && annotation.type === PdfAnnotationSubtype.WIDGET) {
+      if (!this.pdfiumModule.FPDFAnnot_HasKey(annotPtr, 'AP')) {
+        this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotPtr);
+        hasAP = !!this.pdfiumModule.EPDFAnnot_HasAppearanceStream(annotPtr, mode);
+      }
+    }
     if (!hasAP) {
       this.pdfiumModule.FPDFPage_CloseAnnot(annotPtr);
       pageCtx.release();
@@ -9078,7 +9084,18 @@ export class PdfiumNative implements IPdfiumExecutor {
     finalScale: number,
   ): AnnotationAppearanceImage | null {
     if (!this.pdfiumModule.EPDFAnnot_HasAppearanceStream(annotPtr, mode)) {
-      return null;
+      const subtype = this.pdfiumModule.FPDFAnnot_GetSubtype(annotPtr);
+      if (
+        subtype === PdfAnnotationSubtype.WIDGET &&
+        !this.pdfiumModule.FPDFAnnot_HasKey(annotPtr, 'AP')
+      ) {
+        this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotPtr);
+        if (!this.pdfiumModule.EPDFAnnot_HasAppearanceStream(annotPtr, mode)) {
+          return null;
+        }
+      } else {
+        return null;
+      }
     }
 
     // Read rect using EPDFAnnot_GetRect (normalized) and convert to device coords

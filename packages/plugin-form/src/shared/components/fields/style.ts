@@ -28,7 +28,10 @@ export const checkboxStyle: CSSProperties = {
 
 export const inputStyle: CSSProperties = baseInputStyle;
 
-export const selectStyle: CSSProperties = baseInputStyle;
+export const selectStyle: CSSProperties = {
+  ...baseInputStyle,
+  cursor: 'inherit',
+};
 
 export const textareaStyle: CSSProperties = {
   ...baseInputStyle,
