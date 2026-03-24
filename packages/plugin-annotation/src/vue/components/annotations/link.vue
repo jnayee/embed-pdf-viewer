@@ -110,9 +110,9 @@ const dashArray = computed(() => {
 const isUnderline = computed(() => props.strokeStyle === PdfAnnotationBorderStyle.UNDERLINE);
 
 const hitAreaCursor = computed(() =>
-  props.hasIRT ? 'default' : props.isSelected ? 'move' : 'pointer',
+  props.hasIRT || !props.onClick ? 'default' : props.isSelected ? 'move' : 'pointer',
 );
 const hitAreaPointerEvents = computed(() =>
-  props.hasIRT ? 'none' : props.isSelected ? 'none' : 'visible',
+  props.hasIRT || !props.onClick ? 'none' : props.isSelected ? 'none' : 'visible',
 );
 </script>

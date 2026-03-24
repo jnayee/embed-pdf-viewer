@@ -59,8 +59,8 @@
     stroke="transparent"
     stroke-width={4}
     onpointerdown={(e) => onClick?.(e)}
-    style:cursor={isSelected ? 'move' : 'pointer'}
-    pointer-events={isSelected ? 'none' : 'visible'}
+    style:cursor={isSelected ? 'move' : onClick ? 'pointer' : 'default'}
+    pointer-events={!onClick ? 'none' : isSelected ? 'none' : 'visible'}
   />
   <!-- Visual -->
   {#if !appearanceActive}

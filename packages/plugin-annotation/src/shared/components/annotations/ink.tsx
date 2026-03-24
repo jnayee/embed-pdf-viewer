@@ -80,8 +80,8 @@ export function Ink({
           strokeWidth={hitStrokeWidth}
           onPointerDown={onClick}
           style={{
-            cursor: isSelected ? 'move' : 'pointer',
-            pointerEvents: isSelected ? 'none' : 'visibleStroke',
+            cursor: isSelected ? 'move' : onClick ? 'pointer' : 'default',
+            pointerEvents: !onClick ? 'none' : isSelected ? 'none' : 'visibleStroke',
             strokeLinecap: 'round',
             strokeLinejoin: 'round',
           }}

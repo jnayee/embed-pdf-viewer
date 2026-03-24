@@ -1,4 +1,4 @@
-import { PdfAnnotationObject, PdfBlendMode } from '@embedpdf/models';
+import { PdfAnnotationObject, PdfBlendMode, Rect } from '@embedpdf/models';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
 import {
   HandleElementProps,
@@ -145,7 +145,7 @@ export interface AnnotationRendererProps<T extends PdfAnnotationObject = PdfAnno
   scale: number;
   pageIndex: number;
   documentId: string;
-  onClick: (e: AnnotationInteractionEvent) => void;
+  onClick?: (e: AnnotationInteractionEvent) => void;
   /** When true, AP canvas provides the visual; component should only render hit area */
   appearanceActive: boolean;
 }
@@ -166,7 +166,10 @@ export interface SelectOverrideHelpers {
  * This allows external plugins to provide their own rendering for annotation subtypes.
  * Used at definition time for type safety.
  */
-export interface AnnotationRendererEntry<T extends PdfAnnotationObject = PdfAnnotationObject> {
+export interface AnnotationRendererEntry<
+  T extends PdfAnnotationObject = PdfAnnotationObject,
+  P = never,
+> {
   /** Unique identifier for this renderer (usually matches tool id) */
   id: string;
 
@@ -175,6 +178,9 @@ export interface AnnotationRendererEntry<T extends PdfAnnotationObject = PdfAnno
 
   /** The component to render the annotation */
   render: (props: AnnotationRendererProps<T>) => JSX.Element;
+
+  /** Render a preview during drag-to-create. P is the preview data type. */
+  renderPreview?: (props: { data: P; bounds: Rect; scale: number }) => JSX.Element;
 
   /** Vertex configuration for annotations with draggable vertices (line, polyline, polygon) */
   vertexConfig?: VertexConfig<T>;
@@ -214,6 +220,12 @@ export interface AnnotationRendererEntry<T extends PdfAnnotationObject = PdfAnno
 
   /** Return true to hide the selection menu for this annotation */
   hideSelectionMenu?: (annotation: T) => boolean;
+
+  /** When true, the annotation is completely hidden when locked (e.g., form widgets defer to the form-filling layer). */
+  hiddenWhenLocked?: boolean;
+
+  /** Optional locked-mode renderer. When the annotation is locked, this replaces `render` inside the container. */
+  renderLocked?: (props: AnnotationRendererProps<T>) => JSX.Element;
 }
 
 /**
@@ -224,6 +236,7 @@ export interface BoxedAnnotationRenderer {
   id: string;
   matches: (annotation: PdfAnnotationObject) => boolean;
   render: (props: AnnotationRendererProps) => JSX.Element;
+  renderPreview?: (props: { data: unknown; bounds: Rect; scale: number }) => JSX.Element;
   vertexConfig?: VertexConfig<PdfAnnotationObject>;
   zIndex?: number;
   defaultBlendMode?: PdfBlendMode;
@@ -244,19 +257,24 @@ export interface BoxedAnnotationRenderer {
     helpers: SelectOverrideHelpers,
   ) => void;
   hideSelectionMenu?: (annotation: PdfAnnotationObject) => boolean;
+  hiddenWhenLocked?: boolean;
+  renderLocked?: (props: AnnotationRendererProps) => JSX.Element;
 }
 
 /**
  * Creates a boxed renderer from a typed entry.
  * Type safety is enforced at definition time, then erased for storage.
  */
-export function createRenderer<T extends PdfAnnotationObject>(
-  entry: AnnotationRendererEntry<T>,
+export function createRenderer<T extends PdfAnnotationObject, P = never>(
+  entry: AnnotationRendererEntry<T, P>,
 ): BoxedAnnotationRenderer {
   return {
     id: entry.id,
     matches: (annotation) => entry.matches(annotation),
     render: (props) => entry.render(props as AnnotationRendererProps<T>),
+    renderPreview: entry.renderPreview
+      ? (props) => entry.renderPreview!(props as { data: P; bounds: Rect; scale: number })
+      : undefined,
     vertexConfig: entry.vertexConfig as VertexConfig<PdfAnnotationObject> | undefined,
     zIndex: entry.zIndex,
     defaultBlendMode: entry.defaultBlendMode,
@@ -271,5 +289,9 @@ export function createRenderer<T extends PdfAnnotationObject>(
     hideSelectionMenu: entry.hideSelectionMenu as
       | ((annotation: PdfAnnotationObject) => boolean)
       | undefined,
+    hiddenWhenLocked: entry.hiddenWhenLocked,
+    renderLocked: entry.renderLocked
+      ? (props) => entry.renderLocked!(props as AnnotationRendererProps<T>)
+      : undefined,
   };
 }

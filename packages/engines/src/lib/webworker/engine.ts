@@ -1,6 +1,8 @@
 import {
   FormFieldValue,
+  PdfWidgetAnnoField,
   PdfAttachmentObject,
+  PdfDocumentJavaScriptActionObject,
   PdfFile,
   PdfMetadataObject,
   PdfSignatureObject,
@@ -39,6 +41,7 @@ import {
   PdfAnnotationsProgress,
   PdfPrintOptions,
   PdfBookmarkObject,
+  PdfWidgetJavaScriptActionObject,
   PdfAddAttachmentParams,
   AnnotationAppearanceMap,
   ImageDataLike,
@@ -571,6 +574,48 @@ export class WebWorkerEngine implements PdfEngine {
   }
 
   /**
+   *
+   * {@inheritDoc @embedpdf/models!PdfEngine.getPageFormFields}
+   *
+   * @public
+   */
+  getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageAnnoWidgets', doc, page);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfWidgetAnnoObject[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'getPageAnnoWidgets', [doc, page]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  getDocumentJavaScriptActions(doc: PdfDocumentObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getDocumentJavaScriptActions', doc);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfDocumentJavaScriptActionObject[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'getDocumentJavaScriptActions', [doc]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  getPageWidgetJavaScriptActions(doc: PdfDocumentObject, page: PdfPageObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageWidgetJavaScriptActions', doc, page);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfWidgetJavaScriptActionObject[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'getPageWidgetJavaScriptActions', [
+      doc,
+      page,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
    * {@inheritDoc @embedpdf/models!PdfEngine.createPageAnnotation}
    *
    * @public
@@ -816,6 +861,109 @@ export class WebWorkerEngine implements PdfEngine {
       page,
       annotation,
       value,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.setFormFieldState}
+   *
+   * @public
+   */
+  setFormFieldState(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    field: PdfWidgetAnnoField,
+  ) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setFormFieldState', doc, annotation, field);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'setFormFieldState', [
+      doc,
+      page,
+      annotation,
+      field,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renameWidgetField', doc, annotation, name);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'renameWidgetField', [
+      doc,
+      page,
+      annotation,
+      name,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'shareWidgetField',
+      doc,
+      sourceAnnotation,
+      targetAnnotation,
+    );
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'shareWidgetField', [
+      doc,
+      sourcePage,
+      sourceAnnotation,
+      targetPage,
+      targetAnnotation,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'regenerateWidgetAppearances',
+      doc,
+      page,
+      annotationIds,
+    );
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'regenerateWidgetAppearances', [
+      doc,
+      page,
+      annotationIds,
     ]);
     this.proxy(task, request);
 

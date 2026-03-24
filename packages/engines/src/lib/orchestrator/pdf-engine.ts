@@ -25,7 +25,10 @@ import {
   PdfAnnotationsProgress,
   PdfAttachmentObject,
   PdfAddAttachmentParams,
+  PdfDocumentJavaScriptActionObject,
   PdfWidgetAnnoObject,
+  PdfWidgetAnnoField,
+  PdfWidgetJavaScriptActionObject,
   FormFieldValue,
   PdfFlattenPageOptions,
   PdfPageFlattenResult,
@@ -775,6 +778,41 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
 
   // ========== Forms ==========
 
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[]> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.getDocumentJavaScriptActions(doc),
+        meta: { docId: doc.id, operation: 'getDocumentJavaScriptActions' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.getPageAnnoWidgets(doc, page),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageAnnoWidgets' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[]> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.getPageWidgetJavaScriptActions(doc, page),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageWidgetJavaScriptActions' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   setFormFieldValue(
     doc: PdfDocumentObject,
     page: PdfPageObject,
@@ -785,6 +823,77 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       {
         execute: () => this.executor.setFormFieldValue(doc, page, annotation, value),
         meta: { docId: doc.id, pageIndex: page.index, operation: 'setFormFieldValue' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  setFormFieldState(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    field: PdfWidgetAnnoField,
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.setFormFieldState(doc, page, annotation, field),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'setFormFieldState' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.renameWidgetField(doc, page, annotation, name),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'renameWidgetField' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () =>
+          this.executor.shareWidgetField(
+            doc,
+            sourcePage,
+            sourceAnnotation,
+            targetPage,
+            targetAnnotation,
+          ),
+        meta: {
+          docId: doc.id,
+          pageIndex: sourcePage.index,
+          operation: 'shareWidgetField',
+        },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.regenerateWidgetAppearances(doc, page, annotationIds),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'regenerateWidgetAppearances' },
       },
       { priority: Priority.MEDIUM },
     );

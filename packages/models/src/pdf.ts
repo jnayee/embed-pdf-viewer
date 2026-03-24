@@ -1336,14 +1336,30 @@ export enum PdfAnnotationFlags {
  */
 export enum PDF_FORM_FIELD_FLAG {
   NONE = 0,
+  // Common flags (PDF 1.7 Table 8.70)
   READONLY = 1 << 0,
   REQUIRED = 1 << 1,
   NOEXPORT = 1 << 2,
+  // Text field flags (PDF 1.7 Table 8.77)
   TEXT_MULTIPLINE = 1 << 12,
   TEXT_PASSWORD = 1 << 13,
+  TEXT_FILESELECT = 1 << 20,
+  TEXT_DONOTSPELLCHECK = 1 << 22,
+  TEXT_DONOTSCROLL = 1 << 23,
+  TEXT_COMB = 1 << 24,
+  TEXT_RICHTEXT = 1 << 25,
+  // Button field flags (PDF 1.7 Table 8.75)
+  BUTTON_NOTOGGLETOOFF = 1 << 14,
+  BUTTON_RADIO = 1 << 15,
+  BUTTON_PUSHBUTTON = 1 << 16,
+  BUTTON_RADIOSINUNISON = 1 << 25,
+  // Choice field flags (PDF 1.7 Table 8.79)
   CHOICE_COMBO = 1 << 17,
   CHOICE_EDIT = 1 << 18,
+  CHOICE_SORT = 1 << 19,
   CHOICE_MULTL_SELECT = 1 << 21,
+  CHOICE_DONOTSPELLCHECK = 1 << 22,
+  CHOICE_COMMITONSELCHANGE = 1 << 26,
 }
 
 /**
@@ -1455,40 +1471,101 @@ export function namesToFlags(names: readonly PdfAnnotationFlagName[]): PdfAnnota
 }
 
 /**
- * Field of PDF widget annotation
+ * Shared properties across all widget annotation field types
  *
  * @public
  */
-export interface PdfWidgetAnnoField {
-  /**
-   * flag of field
-   */
+export interface PdfWidgetAnnoFieldBase {
   flag: PDF_FORM_FIELD_FLAG;
-  /**
-   * name of field
-   */
   name: string;
-  /**
-   * alternate name of field
-   */
   alternateName: string;
-  /**
-   * type of field
-   */
-  type: PDF_FORM_FIELD_TYPE;
-  /**
-   * value of field
-   */
   value: string;
-  /**
-   * whether field is checked
-   */
-  isChecked: boolean;
-  /**
-   * options of field
-   */
+  fieldObjectId?: number;
+}
+
+/**
+ * @public
+ */
+export interface PdfTextWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.TEXTFIELD;
+  maxLen?: number;
+}
+
+/**
+ * @public
+ */
+export interface PdfCheckboxWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.CHECKBOX;
+}
+
+/**
+ * @public
+ */
+export interface PdfRadioButtonWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.RADIOBUTTON;
   options: PdfWidgetAnnoOption[];
 }
+
+/**
+ * @public
+ */
+export interface PdfComboboxWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.COMBOBOX;
+  options: PdfWidgetAnnoOption[];
+}
+
+/**
+ * @public
+ */
+export interface PdfListboxWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.LISTBOX;
+  options: PdfWidgetAnnoOption[];
+}
+
+/**
+ * @public
+ */
+export interface PdfPushButtonWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.PUSHBUTTON;
+}
+
+/**
+ * @public
+ */
+export interface PdfSignatureWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type: PDF_FORM_FIELD_TYPE.SIGNATURE;
+}
+
+/**
+ * @public
+ */
+export interface PdfUnknownWidgetAnnoField extends PdfWidgetAnnoFieldBase {
+  type:
+    | PDF_FORM_FIELD_TYPE.UNKNOWN
+    | PDF_FORM_FIELD_TYPE.XFA
+    | PDF_FORM_FIELD_TYPE.XFA_CHECKBOX
+    | PDF_FORM_FIELD_TYPE.XFA_COMBOBOX
+    | PDF_FORM_FIELD_TYPE.XFA_IMAGEFIELD
+    | PDF_FORM_FIELD_TYPE.XFA_LISTBOX
+    | PDF_FORM_FIELD_TYPE.XFA_PUSHBUTTON
+    | PDF_FORM_FIELD_TYPE.XFA_SIGNATURE
+    | PDF_FORM_FIELD_TYPE.XFA_TEXTFIELD;
+}
+
+/**
+ * Discriminated union of all widget annotation field types
+ *
+ * @public
+ */
+export type PdfWidgetAnnoField =
+  | PdfTextWidgetAnnoField
+  | PdfCheckboxWidgetAnnoField
+  | PdfRadioButtonWidgetAnnoField
+  | PdfComboboxWidgetAnnoField
+  | PdfListboxWidgetAnnoField
+  | PdfPushButtonWidgetAnnoField
+  | PdfSignatureWidgetAnnoField
+  | PdfUnknownWidgetAnnoField;
 
 /**
  * PDF widget object
@@ -1502,7 +1579,142 @@ export interface PdfWidgetAnnoObject extends PdfAnnotationObjectBase {
    * Field of pdf widget object
    */
   field: PdfWidgetAnnoField;
+  /**
+   * The non-"Off" appearance state key from the widget's /AP/N dictionary.
+   * For checkboxes this is typically "Yes"; for radio buttons it is a unique
+   * identifier (usually the widget's NM). Checked state is derived:
+   * `field.value === exportValue`.
+   */
+  exportValue?: string;
+  /**
+   * font family of pdf widget object
+   */
+  fontFamily: PdfStandardFont;
+  /**
+   * font size of pdf widget object
+   */
+  fontSize: number;
+  /**
+   * font color of pdf widget object
+   */
+  fontColor: string;
+  /**
+   * MK border color (BC) as web hex string, e.g. '#FF0000'
+   */
+  strokeColor?: string;
+  /**
+   * MK background color (BG) as web hex string, e.g. '#FFFFFF'
+   */
+  color?: string;
+  /**
+   * Border width in points (BS width)
+   */
+  strokeWidth?: number;
 }
+
+/**
+ * Returns whether a toggle widget (checkbox / radio button) is currently
+ * in its "on" state by comparing the shared field value against this
+ * widget's unique export value from the /AP/N dictionary.
+ *
+ * @public
+ */
+export function isWidgetChecked(widget: PdfWidgetAnnoObject): boolean {
+  return widget.exportValue != null && widget.field.value === widget.exportValue;
+}
+
+/**
+ * Widget additional-action event types exposed by PDFium.
+ *
+ * @public
+ */
+export enum PDF_ANNOT_AACTION_EVENT {
+  KEY_STROKE = 12,
+  FORMAT = 13,
+  VALIDATE = 14,
+  CALCULATE = 15,
+}
+
+/**
+ * Normalized widget JavaScript trigger names.
+ *
+ * @public
+ */
+export enum PdfJavaScriptWidgetEventType {
+  Keystroke = 'keystroke',
+  Format = 'format',
+  Validate = 'validate',
+  Calculate = 'calculate',
+}
+
+/**
+ * Normalized JavaScript action trigger names.
+ *
+ * @public
+ */
+export enum PdfJavaScriptActionTrigger {
+  DocumentNamed = 'document_named',
+  WidgetKeystroke = 'widget_keystroke',
+  WidgetFormat = 'widget_format',
+  WidgetValidate = 'widget_validate',
+  WidgetCalculate = 'widget_calculate',
+}
+
+/**
+ * Base shape shared by extracted PDF JavaScript actions.
+ *
+ * @public
+ */
+export interface PdfJavaScriptActionObjectBase {
+  /**
+   * Stable identifier for the extracted action within the current document snapshot.
+   */
+  id: string;
+  /**
+   * Normalized trigger classification used by higher layers.
+   */
+  trigger: PdfJavaScriptActionTrigger;
+  /**
+   * Raw JavaScript source extracted from the PDF.
+   */
+  script: string;
+}
+
+/**
+ * A named document-level JavaScript action from the document JavaScript name tree.
+ *
+ * @public
+ */
+export interface PdfDocumentJavaScriptActionObject extends PdfJavaScriptActionObjectBase {
+  trigger: PdfJavaScriptActionTrigger.DocumentNamed;
+  name: string;
+}
+
+/**
+ * A widget-level JavaScript additional action.
+ *
+ * @public
+ */
+export interface PdfWidgetJavaScriptActionObject extends PdfJavaScriptActionObjectBase {
+  trigger:
+    | PdfJavaScriptActionTrigger.WidgetKeystroke
+    | PdfJavaScriptActionTrigger.WidgetFormat
+    | PdfJavaScriptActionTrigger.WidgetValidate
+    | PdfJavaScriptActionTrigger.WidgetCalculate;
+  eventType: PdfJavaScriptWidgetEventType;
+  pageIndex: number;
+  annotationId: string;
+  fieldName: string;
+}
+
+/**
+ * Discriminated union of supported extracted PDF JavaScript actions.
+ *
+ * @public
+ */
+export type PdfJavaScriptActionObject =
+  | PdfDocumentJavaScriptActionObject
+  | PdfWidgetJavaScriptActionObject;
 
 /**
  * Pdf file attachments annotation
@@ -2268,6 +2480,16 @@ export interface PdfUnsupportedAnnoObject extends PdfAnnotationObjectBase {
 export type PdfAnnotationObject = PdfSupportedAnnoObject | PdfUnsupportedAnnoObject;
 
 /**
+ * Extracts the concrete annotation object type for a specific subtype.
+ *
+ * @public
+ */
+export type PdfAnnotationOf<S extends PdfAnnotationSubtype> = Extract<
+  PdfAnnotationObject,
+  { type: S }
+>;
+
+/**
  * Pdf attachment
  *
  * @public
@@ -2652,7 +2874,7 @@ export interface PdfPageTextRuns {
 export type FormFieldValue =
   | { kind: 'text'; text: string }
   | { kind: 'selection'; index: number; isSelected: boolean }
-  | { kind: 'checked'; isChecked: boolean };
+  | { kind: 'checked'; checked: boolean };
 
 /**
  * Transformation that will be applied to annotation
@@ -3295,6 +3517,46 @@ export interface PdfEngine<T = Blob> {
     page: PdfPageObject,
   ) => PdfTask<PdfAnnotationObject[]>;
   /**
+   * Extract named document JavaScript actions without executing them.
+   * @param doc - pdf document
+   * @returns task that contains all named document JavaScript actions
+   */
+  getDocumentJavaScriptActions: (
+    doc: PdfDocumentObject,
+  ) => PdfTask<PdfDocumentJavaScriptActionObject[]>;
+  /**
+   * Get form fields of pdf page
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @returns task contains the form fields or error
+   */
+  getPageAnnoWidgets: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ) => PdfTask<PdfWidgetAnnoObject[]>;
+  /**
+   * Extract widget additional JavaScript actions for a page without executing them.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @returns task containing page widget JavaScript actions
+   */
+  getPageWidgetJavaScriptActions: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ) => PdfTask<PdfWidgetJavaScriptActionObject[]>;
+  /**
+   * Regenerate appearance streams for specific widget annotations on a page.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotationIds - NM values of the annotations to regenerate
+   * @returns task indicating whether any appearances were regenerated
+   */
+  regenerateWidgetAppearances: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ) => PdfTask<boolean>;
+  /**
    * Create a annotation on specified page
    * @param doc - pdf document
    * @param page - pdf page
@@ -3405,6 +3667,51 @@ export interface PdfEngine<T = Blob> {
     page: PdfPageObject,
     annotation: PdfWidgetAnnoObject,
     value: FormFieldValue,
+  ) => PdfTask<boolean>;
+  /**
+   * Restore a widget annotation to the full field state described by `field`.
+   * Unlike `setFormFieldValue`, this accepts a complete `PdfWidgetAnnoField`
+   * snapshot and applies all writable state in a single call.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotation - pdf widget annotation
+   * @param field - the desired field state to apply
+   */
+  setFormFieldState: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    field: PdfWidgetAnnoField,
+  ) => PdfTask<boolean>;
+  /**
+   * Rename the logical form field associated with a widget annotation.
+   * This updates the field dictionary rather than patching only a single widget snapshot.
+   * @param doc - pdf document
+   * @param page - pdf page containing the widget annotation
+   * @param annotation - pdf widget annotation
+   * @param name - the desired partial field name (/T)
+   */
+  renameWidgetField: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ) => PdfTask<boolean>;
+  /**
+   * Attach the source widget's logical field to the target widget's logical field.
+   * This is a structural field operation and may merge multiple widget kids under one parent.
+   * @param doc - pdf document
+   * @param sourcePage - page containing the source widget annotation
+   * @param sourceAnnotation - widget whose field should be shared into the target field
+   * @param targetPage - page containing the target widget annotation
+   * @param targetAnnotation - widget whose logical field should be reused
+   */
+  shareWidgetField: (
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
   ) => PdfTask<boolean>;
   /**
    * Flatten annotations and form fields into the page contents.
@@ -3714,11 +4021,43 @@ export interface IPdfiumExecutor {
     doc: PdfDocumentObject,
     attachment: PdfAttachmentObject,
   ): PdfTask<ArrayBuffer>;
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[]>;
+  getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]>;
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[]>;
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean>;
   setFormFieldValue(
     doc: PdfDocumentObject,
     page: PdfPageObject,
     annotation: PdfWidgetAnnoObject,
     value: FormFieldValue,
+  ): PdfTask<boolean>;
+  setFormFieldState(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    field: PdfWidgetAnnoField,
+  ): PdfTask<boolean>;
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean>;
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
   ): PdfTask<boolean>;
   flattenPage(
     doc: PdfDocumentObject,

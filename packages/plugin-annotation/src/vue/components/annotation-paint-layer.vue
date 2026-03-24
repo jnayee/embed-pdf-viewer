@@ -4,6 +4,7 @@
   <PreviewRenderer
     v-for="[toolId, preview] in previews.entries()"
     :key="toolId"
+    :toolId="toolId"
     :preview="preview"
     :scale="scale"
   />
@@ -12,7 +13,7 @@
 <script setup lang="ts">
 import { ref, watchEffect, computed } from 'vue';
 import { useAnnotationPlugin } from '../hooks';
-import { AnyPreviewState, HandlerServices } from '@embedpdf/plugin-annotation';
+import { PreviewState, HandlerServices } from '@embedpdf/plugin-annotation';
 import PreviewRenderer from './preview-renderer.vue';
 
 const props = defineProps<{
@@ -22,7 +23,7 @@ const props = defineProps<{
 }>();
 
 const { plugin: annotationPlugin } = useAnnotationPlugin();
-const previews = ref<Map<string, AnyPreviewState>>(new Map());
+const previews = ref<Map<string, PreviewState>>(new Map());
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 

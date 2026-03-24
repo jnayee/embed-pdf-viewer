@@ -35,6 +35,8 @@ import { Underline } from './text-markup/underline';
 import { Strikeout } from './text-markup/strikeout';
 import { Squiggly } from './text-markup/squiggly';
 import { Caret } from './annotations/caret';
+import { LinkLockedMode } from './annotations/link-locked';
+import { LinkPreviewData } from '@embedpdf/plugin-annotation';
 
 export const builtInRenderers: BoxedAnnotationRenderer[] = [
   // --- Drawing ---
@@ -304,7 +306,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
 
   // --- Link ---
 
-  createRenderer<PdfLinkAnnoObject>({
+  createRenderer<PdfLinkAnnoObject, LinkPreviewData>({
     id: 'link',
     matches: (a): a is PdfLinkAnnoObject => a.type === PdfAnnotationSubtype.LINK,
     render: ({ currentObject, isSelected, scale, onClick }) => (
@@ -316,9 +318,23 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         hasIRT={!!currentObject.inReplyToId}
       />
     ),
+    renderPreview: ({ data, bounds, scale }) => (
+      <div
+        style={{
+          position: 'absolute' as const,
+          left: 0,
+          top: 0,
+          width: bounds.size.width * scale,
+          height: bounds.size.height * scale,
+          borderBottom: `${data.strokeWidth * scale}px solid ${data.strokeColor}`,
+          backgroundColor: 'rgba(0, 0, 255, 0.05)',
+          boxSizing: 'border-box' as const,
+        }}
+      />
+    ),
     interactionDefaults: {
-      isDraggable: false,
-      isResizable: false,
+      isDraggable: true,
+      isResizable: true,
       isRotatable: false,
     },
     useAppearanceStream: false,
@@ -337,5 +353,6 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
       helpers.selectAnnotation(helpers.pageIndex, annotation.object.id);
     },
     hideSelectionMenu: (a) => !!a.inReplyToId,
+    renderLocked: (props) => <LinkLockedMode {...props} />,
   }),
 ];

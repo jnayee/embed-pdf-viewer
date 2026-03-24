@@ -20,8 +20,8 @@
       :stroke-width="4"
       @pointerdown="onClick"
       :style="{
-        cursor: isSelected ? 'move' : 'pointer',
-        pointerEvents: isSelected ? 'none' : 'visible',
+        cursor: isSelected ? 'move' : onClick ? 'pointer' : 'default',
+        pointerEvents: !onClick ? 'none' : isSelected ? 'none' : 'visible',
       }"
     />
     <!-- Visual -->

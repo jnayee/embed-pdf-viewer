@@ -19,6 +19,9 @@ import {
   PdfAttachmentObject,
   PdfAddAttachmentParams,
   PdfWidgetAnnoObject,
+  PdfWidgetAnnoField,
+  PdfDocumentJavaScriptActionObject,
+  PdfWidgetJavaScriptActionObject,
   FormFieldValue,
   PdfFlattenPageOptions,
   PdfPageFlattenResult,
@@ -96,7 +99,14 @@ type MessageType =
   | 'addAttachment'
   | 'removeAttachment'
   | 'readAttachmentContent'
+  | 'getDocumentJavaScriptActions'
+  | 'getPageAnnoWidgets'
+  | 'getPageWidgetJavaScriptActions'
   | 'setFormFieldValue'
+  | 'setFormFieldState'
+  | 'renameWidgetField'
+  | 'shareWidgetField'
+  | 'regenerateWidgetAppearances'
   | 'flattenPage'
   | 'extractPages'
   | 'extractText'
@@ -454,6 +464,26 @@ export class RemoteExecutor implements IPdfiumExecutor {
     return this.send<ArrayBuffer>('readAttachmentContent', [doc, attachment]);
   }
 
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[]> {
+    return this.send<PdfDocumentJavaScriptActionObject[]>('getDocumentJavaScriptActions', [doc]);
+  }
+
+  getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]> {
+    return this.send<PdfWidgetAnnoObject[]>('getPageAnnoWidgets', [doc, page]);
+  }
+
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[]> {
+    return this.send<PdfWidgetJavaScriptActionObject[]>('getPageWidgetJavaScriptActions', [
+      doc,
+      page,
+    ]);
+  }
+
   setFormFieldValue(
     doc: PdfDocumentObject,
     page: PdfPageObject,
@@ -461,6 +491,48 @@ export class RemoteExecutor implements IPdfiumExecutor {
     value: FormFieldValue,
   ): PdfTask<boolean> {
     return this.send<boolean>('setFormFieldValue', [doc, page, annotation, value]);
+  }
+
+  setFormFieldState(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    field: PdfWidgetAnnoField,
+  ): PdfTask<boolean> {
+    return this.send<boolean>('setFormFieldState', [doc, page, annotation, field]);
+  }
+
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean> {
+    return this.send<boolean>('renameWidgetField', [doc, page, annotation, name]);
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ): PdfTask<boolean> {
+    return this.send<boolean>('shareWidgetField', [
+      doc,
+      sourcePage,
+      sourceAnnotation,
+      targetPage,
+      targetAnnotation,
+    ]);
+  }
+
+  regenerateWidgetAppearances(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationIds: string[],
+  ): PdfTask<boolean> {
+    return this.send<boolean>('regenerateWidgetAppearances', [doc, page, annotationIds]);
   }
 
   flattenPage(

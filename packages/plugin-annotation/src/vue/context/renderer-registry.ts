@@ -77,8 +77,8 @@ export function useRegisterRenderers(entries: BoxedAnnotationRenderer[]) {
  * Factory to create a boxed renderer from a typed entry.
  * Wraps component in markRaw to prevent reactivity overhead.
  */
-export function createRenderer<T extends PdfAnnotationObject>(
-  entry: AnnotationRendererEntry<T>,
+export function createRenderer<T extends PdfAnnotationObject, P = never>(
+  entry: AnnotationRendererEntry<T, P>,
 ): BoxedAnnotationRenderer {
   return {
     id: entry.id,
@@ -98,6 +98,13 @@ export function createRenderer<T extends PdfAnnotationObject>(
     hideSelectionMenu: entry.hideSelectionMenu as
       | ((annotation: PdfAnnotationObject) => boolean)
       | undefined,
+    renderPreview: entry.renderPreview
+      ? (markRaw(entry.renderPreview) as BoxedAnnotationRenderer['renderPreview'])
+      : undefined,
+    hiddenWhenLocked: entry.hiddenWhenLocked,
+    renderLocked: entry.renderLocked
+      ? (markRaw(entry.renderLocked) as BoxedAnnotationRenderer['renderLocked'])
+      : undefined,
   };
 }
 

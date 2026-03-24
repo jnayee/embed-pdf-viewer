@@ -1,53 +1,54 @@
 <template>
-  <template v-for="{ annotation, renderer } in resolvedAnnotations" :key="annotation.object.id">
-    <template v-if="renderer">
-      <AnnotationContainer
-        :trackedAnnotation="annotation"
-        :isSelected="allSelectedIds.includes(annotation.object.id)"
-        :isEditing="editingId === annotation.object.id"
-        :isMultiSelected="isMultiSelected"
-        :isDraggable="getFinalDraggable(annotation, renderer)"
-        :isResizable="getResolvedResizable(annotation, renderer)"
-        :lockAspectRatio="getResolvedLockAspectRatio(annotation, renderer)"
-        :isRotatable="getResolvedRotatable(annotation, renderer)"
-        :vertexConfig="renderer.vertexConfig"
-        :selectionMenu="getSelectionMenu(annotation, renderer)"
-        :onSelect="getOnSelect(annotation, renderer)"
-        :onDoubleClick="getOnDoubleClick(renderer, annotation)"
-        :zIndex="renderer.zIndex"
-        :blendMode="getBlendMode(annotation, renderer)"
-        :style="renderer.containerStyle?.(annotation.object)"
-        :appearance="getAppearance(annotation, renderer)"
-        v-bind="containerProps"
-      >
-        <template #default="{ annotation: currentObject, appearanceActive }">
-          <component
-            :is="renderer.component"
-            :annotation="annotation"
-            :currentObject="currentObject"
-            :isSelected="allSelectedIds.includes(annotation.object.id)"
-            :isEditing="editingId === annotation.object.id"
-            :scale="scale"
-            :pageIndex="pageIndex"
-            :documentId="documentId"
-            :onClick="getOnSelect(annotation, renderer)"
-            :appearanceActive="appearanceActive"
-          />
-        </template>
-        <template #selection-menu="slotProps" v-if="!isMultiSelected">
-          <slot name="selection-menu" v-bind="slotProps" />
-        </template>
-        <template #resize-handle="slotProps">
-          <slot name="resize-handle" v-bind="slotProps" />
-        </template>
-        <template #vertex-handle="slotProps">
-          <slot name="vertex-handle" v-bind="slotProps" />
-        </template>
-        <template #rotation-handle="slotProps">
-          <slot name="rotation-handle" v-bind="slotProps" />
-        </template>
-      </AnnotationContainer>
-    </template>
+  <template
+    v-for="{ annotation, renderer, locked } in resolvedAnnotations"
+    :key="annotation.object.id"
+  >
+    <AnnotationContainer
+      :trackedAnnotation="annotation"
+      :isSelected="locked ? false : allSelectedIds.includes(annotation.object.id)"
+      :isEditing="locked ? false : editingId === annotation.object.id"
+      :isMultiSelected="locked ? false : isMultiSelected"
+      :isDraggable="getFinalDraggable(annotation, renderer, locked)"
+      :isResizable="getResolvedResizable(annotation, renderer, locked)"
+      :lockAspectRatio="getResolvedLockAspectRatio(annotation, renderer)"
+      :isRotatable="getResolvedRotatable(annotation, renderer, locked)"
+      :vertexConfig="locked ? undefined : renderer.vertexConfig"
+      :selectionMenu="getSelectionMenu(annotation, renderer, locked)"
+      :onSelect="getOnSelect(annotation, renderer, locked)"
+      :onDoubleClick="getOnDoubleClick(renderer, annotation, locked)"
+      :zIndex="renderer.zIndex"
+      :blendMode="getBlendMode(annotation, renderer)"
+      :style="renderer.containerStyle?.(annotation.object)"
+      :appearance="getAppearance(annotation, renderer, locked)"
+      v-bind="containerProps"
+    >
+      <template #default="{ annotation: currentObject, appearanceActive }">
+        <component
+          :is="locked && renderer.renderLocked ? renderer.renderLocked : renderer.component"
+          :annotation="annotation"
+          :currentObject="currentObject"
+          :isSelected="locked ? false : allSelectedIds.includes(annotation.object.id)"
+          :isEditing="locked ? false : editingId === annotation.object.id"
+          :scale="scale"
+          :pageIndex="pageIndex"
+          :documentId="documentId"
+          :onClick="locked ? undefined : getOnSelect(annotation, renderer, locked)"
+          :appearanceActive="appearanceActive"
+        />
+      </template>
+      <template #selection-menu="slotProps" v-if="!isMultiSelected">
+        <slot name="selection-menu" v-bind="slotProps" />
+      </template>
+      <template #resize-handle="slotProps">
+        <slot name="resize-handle" v-bind="slotProps" />
+      </template>
+      <template #vertex-handle="slotProps">
+        <slot name="vertex-handle" v-bind="slotProps" />
+      </template>
+      <template #rotation-handle="slotProps">
+        <slot name="rotation-handle" v-bind="slotProps" />
+      </template>
+    </AnnotationContainer>
   </template>
 
   <!-- Group Selection Box -->
@@ -96,6 +97,11 @@ import {
 import {
   getAnnotationsByPageIndex,
   getSelectedAnnotationIds,
+  getAnnotationCategories,
+  isCategoryLocked,
+  hasLockedFlag,
+  type LockMode,
+  LockModeType,
   TrackedAnnotation,
   resolveInteractionProp,
 } from '@embedpdf/plugin-annotation';
@@ -148,6 +154,7 @@ const { register } = usePointerHandlers({
 });
 const editingId = ref<string | null>(null);
 const appearanceMap = shallowRef<AnnotationAppearanceMap<Blob>>({});
+const lockedMode = shallowRef<LockMode>({ type: LockModeType.None });
 let prevScale = props.scale;
 
 const annotationProvides = computed(() =>
@@ -189,6 +196,7 @@ watch(
     const syncState = (state: ReturnType<typeof provides.getState>) => {
       annotations.value = getAnnotationsByPageIndex(state, pageIndex);
       allSelectedIds.value = getSelectedAnnotationIds(state);
+      lockedMode.value = state.locked;
     };
 
     syncState(provides.getState());
@@ -241,13 +249,26 @@ watch(
 );
 
 const resolvedAnnotations = computed(() =>
-  annotations.value.map((annotation) => ({
-    annotation,
-    renderer: resolveRenderer(annotation),
-  })),
+  annotations.value
+    .map((annotation) => {
+      const renderer = resolveRenderer(annotation);
+      if (!renderer) return null;
+      const tool = annotationProvides.value?.findToolForAnnotation(annotation.object) ?? null;
+      const categories = getAnnotationCategories(tool);
+      const locked =
+        hasLockedFlag(annotation.object) || isCategoryLocked(categories, lockedMode.value);
+      if (locked && renderer.hiddenWhenLocked) return null;
+      return { annotation, renderer, tool, locked };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null),
 );
 
-const getFinalDraggable = (annotation: TrackedAnnotation, renderer: BoxedAnnotationRenderer) => {
+const getFinalDraggable = (
+  annotation: TrackedAnnotation,
+  renderer: BoxedAnnotationRenderer,
+  locked: boolean,
+) => {
+  if (locked) return false;
   const tool = annotationProvides.value?.findToolForAnnotation(annotation.object);
   const defaults = renderer.interactionDefaults;
   const isEditing = editingId.value === annotation.object.id;
@@ -261,7 +282,12 @@ const getFinalDraggable = (annotation: TrackedAnnotation, renderer: BoxedAnnotat
     : resolvedDraggable;
 };
 
-const getResolvedResizable = (annotation: TrackedAnnotation, renderer: BoxedAnnotationRenderer) => {
+const getResolvedResizable = (
+  annotation: TrackedAnnotation,
+  renderer: BoxedAnnotationRenderer,
+  locked: boolean,
+) => {
+  if (locked) return false;
   const tool = annotationProvides.value?.findToolForAnnotation(annotation.object);
   return resolveInteractionProp(
     tool?.interaction.isResizable,
@@ -282,7 +308,12 @@ const getResolvedLockAspectRatio = (
   );
 };
 
-const getResolvedRotatable = (annotation: TrackedAnnotation, renderer: BoxedAnnotationRenderer) => {
+const getResolvedRotatable = (
+  annotation: TrackedAnnotation,
+  renderer: BoxedAnnotationRenderer,
+  locked: boolean,
+) => {
+  if (locked) return false;
   const tool = annotationProvides.value?.findToolForAnnotation(annotation.object);
   return resolveInteractionProp(
     tool?.interaction.isRotatable,
@@ -291,13 +322,27 @@ const getResolvedRotatable = (annotation: TrackedAnnotation, renderer: BoxedAnno
   );
 };
 
-const getSelectionMenu = (annotation: TrackedAnnotation, renderer: BoxedAnnotationRenderer) => {
+const getSelectionMenu = (
+  annotation: TrackedAnnotation,
+  renderer: BoxedAnnotationRenderer,
+  locked: boolean,
+) => {
+  if (locked) return undefined;
   if (renderer.hideSelectionMenu?.(annotation.object)) return undefined;
   if (isMultiSelected.value) return undefined;
   return props.selectionMenu;
 };
 
-const getOnSelect = (annotation: TrackedAnnotation, renderer: BoxedAnnotationRenderer) => {
+const noopSelect = (e: AnnotationInteractionEvent) => {
+  e.stopPropagation();
+};
+
+const getOnSelect = (
+  annotation: TrackedAnnotation,
+  renderer: BoxedAnnotationRenderer,
+  locked: boolean,
+) => {
+  if (locked) return noopSelect;
   if (renderer.selectOverride) {
     const selectHelpers: SelectOverrideHelpers = {
       defaultSelect: handleClick,
@@ -429,7 +474,12 @@ const allSelectedOnSamePage = computed(() => {
 
 // --- Renderer resolution helpers ---
 
-const getOnDoubleClick = (renderer: BoxedAnnotationRenderer, annotation: TrackedAnnotation) => {
+const getOnDoubleClick = (
+  renderer: BoxedAnnotationRenderer,
+  annotation: TrackedAnnotation,
+  locked: boolean,
+) => {
+  if (locked) return undefined;
   if (!renderer.onDoubleClick) return undefined;
   return (e: AnnotationInteractionEvent) => {
     e.stopPropagation();
@@ -449,7 +499,9 @@ const getBlendMode = (
 const getAppearance = (
   annotation: TrackedAnnotation,
   renderer: BoxedAnnotationRenderer,
+  locked: boolean,
 ): AnnotationAppearances<Blob> | null | undefined => {
+  if (locked && renderer.renderLocked) return undefined;
   const tool = annotationProvides.value?.findToolForAnnotation(annotation.object);
   const useAP = tool?.behavior?.useAppearanceStream ?? renderer.useAppearanceStream ?? true;
   return useAP ? getAppearanceForAnnotation(annotation) : undefined;

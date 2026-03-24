@@ -20,8 +20,14 @@
       :stroke-width="hitStrokeWidth"
       @pointerdown="onClick"
       :style="{
-        cursor: isSelected ? 'move' : 'pointer',
-        pointerEvents: isSelected ? 'none' : color === 'transparent' ? 'visibleStroke' : 'visible',
+        cursor: isSelected ? 'move' : onClick ? 'pointer' : 'default',
+        pointerEvents: !onClick
+          ? 'none'
+          : isSelected
+            ? 'none'
+            : color === 'transparent'
+              ? 'visibleStroke'
+              : 'visible',
         strokeLinecap: 'butt',
         strokeLinejoin: 'miter',
       }"

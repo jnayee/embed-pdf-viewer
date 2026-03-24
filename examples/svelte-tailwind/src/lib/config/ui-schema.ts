@@ -43,6 +43,7 @@ export const viewerUISchema: UISchema = {
             hide: [
               'annotate-mode',
               'shapes-mode',
+              'form-mode',
               'redact-mode',
               'zoom-toolbar',
               'pan-button',
@@ -54,7 +55,7 @@ export const viewerUISchema: UISchema = {
           sm: {
             minWidth: 640,
             maxWidth: 768,
-            hide: ['shapes-mode', 'redact-mode', 'zoom-toolbar'],
+            hide: ['shapes-mode', 'form-mode', 'redact-mode', 'zoom-toolbar'],
             show: [
               'annotate-mode',
               'overflow-tabs-button',
@@ -70,7 +71,7 @@ export const viewerUISchema: UISchema = {
           },
           lg: {
             minWidth: 1024,
-            show: ['shapes-mode', 'redact-mode'],
+            show: ['shapes-mode', 'form-mode', 'redact-mode'],
             hide: ['overflow-tabs-button'],
           },
         },
@@ -177,6 +178,11 @@ export const viewerUISchema: UISchema = {
             {
               id: 'shapes-mode',
               commandId: 'mode:shapes',
+              variant: 'text',
+            },
+            {
+              id: 'form-mode',
+              commandId: 'mode:form',
               variant: 'text',
             },
             {
@@ -418,6 +424,87 @@ export const viewerUISchema: UISchema = {
       ],
     },
 
+    // Form toolbar (shown when in form mode)
+    'form-toolbar': {
+      id: 'form-toolbar',
+      position: {
+        placement: 'top',
+        slot: 'secondary',
+        order: 0,
+      },
+      permanent: false,
+      items: [
+        { type: 'spacer', id: 'spacer-form-1', flex: true },
+        {
+          type: 'group',
+          id: 'form-tools',
+          alignment: 'start',
+          gap: 2,
+          items: [
+            {
+              type: 'command-button',
+              id: 'add-form-textfield',
+              commandId: 'form:add-textfield',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'add-form-checkbox',
+              commandId: 'form:add-checkbox',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'add-form-radio',
+              commandId: 'form:add-radio',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'add-form-select',
+              commandId: 'form:add-select',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'add-form-listbox',
+              commandId: 'form:add-listbox',
+              variant: 'icon',
+            },
+            {
+              type: 'divider',
+              id: 'form-tools-divider-1',
+              orientation: 'vertical',
+            },
+            {
+              type: 'command-button',
+              id: 'toggle-form-fill-mode',
+              commandId: 'form:toggle-fill-mode',
+              variant: 'icon',
+            },
+            {
+              type: 'divider',
+              id: 'form-tools-divider-2',
+              orientation: 'vertical',
+            },
+            {
+              type: 'command-button',
+              id: 'undo-button',
+              commandId: 'history:undo',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'redo-button',
+              commandId: 'history:redo',
+              variant: 'icon',
+            },
+          ],
+        },
+        { type: 'spacer', id: 'spacer-form-2', flex: true },
+      ],
+    },
+
     // Redaction toolbar (shown when in redact mode)
     'redaction-toolbar': {
       id: 'redaction-toolbar',
@@ -490,6 +577,11 @@ export const viewerUISchema: UISchema = {
         },
         {
           type: 'command',
+          id: 'mode:form',
+          commandId: 'mode:form',
+        },
+        {
+          type: 'command',
           id: 'mode:redact',
           commandId: 'mode:redact',
         },
@@ -498,7 +590,7 @@ export const viewerUISchema: UISchema = {
         breakpoints: {
           xs: {
             maxWidth: 640,
-            show: ['mode:annotate', 'mode:shapes', 'mode:redact'],
+            show: ['mode:annotate', 'mode:shapes', 'mode:form', 'mode:redact'],
           },
           md: {
             minWidth: 640,

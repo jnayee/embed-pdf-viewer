@@ -53,10 +53,12 @@ var createPdfium = (() => {
       '_EPDFAnnot_ApplyRedaction',
       '_EPDFAnnot_ClearBorderEffect',
       '_EPDFAnnot_ClearColor',
+      '_EPDFAnnot_ClearMKColor',
       '_EPDFAnnot_ClearRectangleDifferences',
       '_EPDFAnnot_Flatten',
       '_EPDFAnnot_GenerateAppearance',
       '_EPDFAnnot_GenerateAppearanceWithBlend',
+      '_EPDFAnnot_GenerateFormFieldAP',
       '_EPDFAnnot_GetAPMatrix',
       '_EPDFAnnot_GetAvailableAppearanceModes',
       '_EPDFAnnot_GetBlendMode',
@@ -64,12 +66,16 @@ var createPdfium = (() => {
       '_EPDFAnnot_GetBorderDashPatternCount',
       '_EPDFAnnot_GetBorderEffect',
       '_EPDFAnnot_GetBorderStyle',
+      '_EPDFAnnot_GetButtonExportValue',
       '_EPDFAnnot_GetColor',
       '_EPDFAnnot_GetDefaultAppearance',
       '_EPDFAnnot_GetExtendedRotation',
+      '_EPDFAnnot_GetFormFieldObjectNumber',
+      '_EPDFAnnot_GetFormFieldRawValue',
       '_EPDFAnnot_GetIcon',
       '_EPDFAnnot_GetIntent',
       '_EPDFAnnot_GetLineEndings',
+      '_EPDFAnnot_GetMKColor',
       '_EPDFAnnot_GetOpacity',
       '_EPDFAnnot_GetOverlayText',
       '_EPDFAnnot_GetOverlayTextRepeat',
@@ -90,11 +96,16 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetColor',
       '_EPDFAnnot_SetDefaultAppearance',
       '_EPDFAnnot_SetExtendedRotation',
+      '_EPDFAnnot_SetFormFieldName',
+      '_EPDFAnnot_SetFormFieldOptions',
+      '_EPDFAnnot_SetFormFieldValue',
       '_EPDFAnnot_SetIcon',
       '_EPDFAnnot_SetIntent',
       '_EPDFAnnot_SetLine',
       '_EPDFAnnot_SetLineEndings',
       '_EPDFAnnot_SetLinkedAnnot',
+      '_EPDFAnnot_SetMKColor',
+      '_EPDFAnnot_SetNumberValue',
       '_EPDFAnnot_SetOpacity',
       '_EPDFAnnot_SetOverlayText',
       '_EPDFAnnot_SetOverlayTextRepeat',
@@ -105,6 +116,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetUnrotatedRect',
       '_EPDFAnnot_SetVerticalAlignment',
       '_EPDFAnnot_SetVertices',
+      '_EPDFAnnot_ShareFormField',
       '_EPDFAnnot_UpdateAppearanceToRect',
       '_EPDFAttachment_GetDescription',
       '_EPDFAttachment_GetIntegerValue',
@@ -128,6 +140,7 @@ var createPdfium = (() => {
       '_EPDFNamedDest_SetDest',
       '_EPDFPage_ApplyRedactions',
       '_EPDFPage_CreateAnnot',
+      '_EPDFPage_CreateFormField',
       '_EPDFPage_GetAnnotByName',
       '_EPDFPage_GetAnnotCountRaw',
       '_EPDFPage_GetAnnotRaw',
@@ -5773,8 +5786,6 @@ var createPdfium = (() => {
       /** @export */
       invoke_iiiii,
       /** @export */
-      invoke_v,
-      /** @export */
       invoke_vii,
       /** @export */
       invoke_viii,
@@ -6033,6 +6044,10 @@ var createPdfium = (() => {
     ));
     var _FPDFAnnot_GetNumberValue = (Module['_FPDFAnnot_GetNumberValue'] = createExportWrapper(
       'FPDFAnnot_GetNumberValue',
+      3,
+    ));
+    var _EPDFAnnot_SetNumberValue = (Module['_EPDFAnnot_SetNumberValue'] = createExportWrapper(
+      'EPDFAnnot_SetNumberValue',
       3,
     ));
     var _FPDFAnnot_SetAP = (Module['_FPDFAnnot_SetAP'] = createExportWrapper('FPDFAnnot_SetAP', 3));
@@ -6334,6 +6349,42 @@ var createPdfium = (() => {
       createExportWrapper('EPDFAnnot_GetAvailableAppearanceModes', 1));
     var _EPDFAnnot_HasAppearanceStream = (Module['_EPDFAnnot_HasAppearanceStream'] =
       createExportWrapper('EPDFAnnot_HasAppearanceStream', 2));
+    var _EPDFAnnot_SetMKColor = (Module['_EPDFAnnot_SetMKColor'] = createExportWrapper(
+      'EPDFAnnot_SetMKColor',
+      5,
+    ));
+    var _EPDFAnnot_GetMKColor = (Module['_EPDFAnnot_GetMKColor'] = createExportWrapper(
+      'EPDFAnnot_GetMKColor',
+      5,
+    ));
+    var _EPDFAnnot_ClearMKColor = (Module['_EPDFAnnot_ClearMKColor'] = createExportWrapper(
+      'EPDFAnnot_ClearMKColor',
+      2,
+    ));
+    var _EPDFPage_CreateFormField = (Module['_EPDFPage_CreateFormField'] = createExportWrapper(
+      'EPDFPage_CreateFormField',
+      4,
+    ));
+    var _EPDFAnnot_GenerateFormFieldAP = (Module['_EPDFAnnot_GenerateFormFieldAP'] =
+      createExportWrapper('EPDFAnnot_GenerateFormFieldAP', 1));
+    var _EPDFAnnot_GetButtonExportValue = (Module['_EPDFAnnot_GetButtonExportValue'] =
+      createExportWrapper('EPDFAnnot_GetButtonExportValue', 3));
+    var _EPDFAnnot_GetFormFieldRawValue = (Module['_EPDFAnnot_GetFormFieldRawValue'] =
+      createExportWrapper('EPDFAnnot_GetFormFieldRawValue', 4));
+    var _EPDFAnnot_SetFormFieldValue = (Module['_EPDFAnnot_SetFormFieldValue'] =
+      createExportWrapper('EPDFAnnot_SetFormFieldValue', 3));
+    var _EPDFAnnot_SetFormFieldName = (Module['_EPDFAnnot_SetFormFieldName'] = createExportWrapper(
+      'EPDFAnnot_SetFormFieldName',
+      3,
+    ));
+    var _EPDFAnnot_GetFormFieldObjectNumber = (Module['_EPDFAnnot_GetFormFieldObjectNumber'] =
+      createExportWrapper('EPDFAnnot_GetFormFieldObjectNumber', 2));
+    var _EPDFAnnot_ShareFormField = (Module['_EPDFAnnot_ShareFormField'] = createExportWrapper(
+      'EPDFAnnot_ShareFormField',
+      3,
+    ));
+    var _EPDFAnnot_SetFormFieldOptions = (Module['_EPDFAnnot_SetFormFieldOptions'] =
+      createExportWrapper('EPDFAnnot_SetFormFieldOptions', 4));
     var _FPDFDoc_GetAttachmentCount = (Module['_FPDFDoc_GetAttachmentCount'] = createExportWrapper(
       'FPDFDoc_GetAttachmentCount',
       1,
@@ -7789,17 +7840,6 @@ var createPdfium = (() => {
       var sp = stackSave();
       try {
         return getWasmTableEntry(index)(a1, a2, a3, a4);
-      } catch (e) {
-        stackRestore(sp);
-        if (e !== e + 0) throw e;
-        _setThrew(1, 0);
-      }
-    }
-
-    function invoke_v(index) {
-      var sp = stackSave();
-      try {
-        getWasmTableEntry(index)();
       } catch (e) {
         stackRestore(sp);
         if (e !== e + 0) throw e;

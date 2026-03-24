@@ -92,12 +92,14 @@
     stroke="transparent"
     stroke-width={hitStrokeWidth}
     onpointerdown={onClick}
-    style:cursor={isSelected ? 'move' : 'pointer'}
-    style:pointer-events={isSelected
+    style:cursor={isSelected ? 'move' : onClick ? 'pointer' : 'default'}
+    style:pointer-events={!onClick
       ? 'none'
-      : color === 'transparent'
-        ? 'visibleStroke'
-        : 'visible'}
+      : isSelected
+        ? 'none'
+        : color === 'transparent'
+          ? 'visibleStroke'
+          : 'visible'}
     style:stroke-linecap="butt"
     style:stroke-linejoin="miter"
   />

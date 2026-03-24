@@ -3,8 +3,9 @@ import {
   AnnotationCreateContext,
   AnnotationAppearanceMap,
   PdfAnnotationObject,
-  PdfAnnotationSubtype,
+  PdfDestinationObject,
   PdfErrorReason,
+  PdfLinkTarget,
   PdfRenderPageAnnotationOptions,
   PdfTextAnnoObject,
   Position,
@@ -12,7 +13,7 @@ import {
   Size,
   Task,
 } from '@embedpdf/models';
-import { AnnotationTool } from './tools/types';
+import { AnnotationTool, AnnotationToolMap, ToolById, ToolId } from './tools/types';
 
 /**
  * Metadata attached to annotation history commands for filtering/purging.
@@ -99,6 +100,28 @@ export interface RenderAnnotationOptions {
   options?: PdfRenderPageAnnotationOptions;
 }
 
+export enum LockModeType {
+  None = 'none',
+  All = 'all',
+  Include = 'include',
+  Exclude = 'exclude',
+}
+
+/**
+ * Controls which annotation categories are locked from UI interaction (selection, drag, resize).
+ * Locked annotations let clicks pass through to layers below (e.g. form-filling).
+ *
+ * - `{ type: LockModeType.None }` -- nothing locked (default, full interaction)
+ * - `{ type: LockModeType.All }` -- everything locked
+ * - `{ type: LockModeType.Include, categories: [...] }` -- only listed categories are locked
+ * - `{ type: LockModeType.Exclude, categories: [...] }` -- everything locked except listed categories
+ */
+export type LockMode =
+  | { type: LockModeType.None }
+  | { type: LockModeType.All }
+  | { type: LockModeType.Include; categories: string[] }
+  | { type: LockModeType.Exclude; categories: string[] };
+
 // Per-document annotation state
 export interface AnnotationDocumentState {
   pages: Record<number, string[]>;
@@ -113,6 +136,7 @@ export interface AnnotationDocumentState {
   selectedUid: string | null;
   activeToolId: string | null;
   hasPendingChanges: boolean;
+  locked: LockMode;
 }
 
 export interface AnnotationState {
@@ -149,8 +173,12 @@ export interface AnnotationPluginConfig extends BasePluginConfig {
   deactivateToolAfterCreate?: boolean;
   /** When true (default false), select the annotation immediately after creation. */
   selectAfterCreate?: boolean;
+  /** Initial lock mode for new documents. Defaults to `{ type: LockModeType.None }` (nothing locked). */
+  locked?: LockMode;
   /** When true (default false), automatically enter edit mode after creating an annotation. */
   editAfterCreate?: boolean;
+  /** When true (default), the LinkLockedMode component auto-opens URI links via window.open. Set to false to handle URI navigation yourself via onNavigate. */
+  autoOpenLinks?: boolean;
 }
 
 /**
@@ -180,14 +208,6 @@ export interface TransformOptions<T extends PdfAnnotationObject = PdfAnnotationO
   };
 }
 
-/**
- * Function type for custom patch functions
- */
-export type PatchFunction<T extends PdfAnnotationObject> = (
-  original: T,
-  context: TransformOptions<T>,
-) => Partial<T>;
-
 export type ImportAnnotationItem<T extends PdfAnnotationObject = PdfAnnotationObject> = {
   annotation: T;
   ctx?: AnnotationCreateContext<T>;
@@ -211,8 +231,27 @@ export interface AnnotationActiveToolChangeEvent {
  */
 export type GroupingAction = 'group' | 'ungroup' | 'disabled';
 
+type ToolUnion<TTools extends AnnotationToolMap> = TTools[ToolId<TTools>] & AnnotationTool;
+type ToolEntry<TTools extends AnnotationToolMap, TId extends ToolId<TTools>> = ToolById<
+  TTools,
+  TId
+> &
+  AnnotationTool;
+
+export type NavigateTargetResult =
+  | { outcome: 'navigated' }
+  | { outcome: 'uri'; uri: string }
+  | { outcome: 'destination'; destination: PdfDestinationObject }
+  | { outcome: 'unsupported' };
+
+export interface NavigateEvent {
+  documentId: string;
+  result: NavigateTargetResult;
+  target: PdfLinkTarget;
+}
+
 // Scoped annotation capability for a specific document
-export interface AnnotationScope {
+export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationToolMap> {
   getState(): AnnotationDocumentState;
   getPageAnnotations(
     options: GetPageAnnotationsOptions,
@@ -236,9 +275,10 @@ export interface AnnotationScope {
   setSelection(ids: string[]): void;
   /** Clear all selection */
   deselectAnnotation(): void;
-  getActiveTool(): AnnotationTool | null;
+  getActiveTool(): ToolUnion<TTools> | null;
+  setActiveTool<TId extends ToolId<TTools>>(toolId: TId | null): void;
   setActiveTool(toolId: string | null): void;
-  findToolForAnnotation(annotation: PdfAnnotationObject): AnnotationTool | null;
+  findToolForAnnotation(annotation: PdfAnnotationObject): ToolUnion<TTools> | null;
   importAnnotations(items: ImportAnnotationItem<PdfAnnotationObject>[]): void;
   createAnnotation<A extends PdfAnnotationObject>(
     pageIndex: number,
@@ -296,12 +336,31 @@ export interface AnnotationScope {
   /** Get the available grouping action for the current selection */
   getGroupingAction(): GroupingAction;
 
+  // Locking
+  /** Set which annotation categories are locked from UI interaction */
+  setLocked(mode: LockMode): void;
+  /** Get the current lock mode for this document */
+  getLocked(): LockMode;
+  /** Check if a specific annotation is locked (category-based or per-annotation flag) */
+  isAnnotationLocked(annotation: PdfAnnotationObject): boolean;
+  /** Check if a single category is locked under the current mode */
+  isCategoryLocked(category: string): boolean;
+  /** Check if a tool (by ID) is locked under the current mode (resolves tool categories) */
+  isToolLocked(toolId: string): boolean;
+
+  /** Update annotation object state without marking dirty or triggering commits. Used by the form plugin to sync PDFium state to the UI. */
+  syncAnnotationObject(id: string, patch: Partial<PdfAnnotationObject>): void;
+
+  /** Navigate to a link target. Returns a result indicating whether the plugin handled it or the caller should open a URI. */
+  navigateTarget(target: PdfLinkTarget): Task<NavigateTargetResult, PdfErrorReason>;
+
   onStateChange: EventHook<AnnotationDocumentState>;
   onAnnotationEvent: EventHook<AnnotationEvent>;
-  onActiveToolChange: EventHook<AnnotationTool | null>;
+  onActiveToolChange: EventHook<ToolUnion<TTools> | null>;
+  onNavigate: EventHook<NavigateEvent>;
 }
 
-export interface AnnotationCapability {
+export interface AnnotationCapability<TTools extends AnnotationToolMap = AnnotationToolMap> {
   // Active document operations
   getState: () => AnnotationDocumentState;
   getPageAnnotations: (
@@ -389,17 +448,54 @@ export interface AnnotationCapability {
   /** Check if an annotation is part of a group */
   isInGroup: (annotationId: string, documentId?: string) => boolean;
 
+  // Locking
+  /** Set which annotation categories are locked from UI interaction */
+  setLocked: (mode: LockMode, documentId?: string) => void;
+  /** Get the current lock mode */
+  getLocked: (documentId?: string) => LockMode;
+  /** Check if a specific annotation is locked (category-based or per-annotation flag) */
+  isAnnotationLocked: (annotation: PdfAnnotationObject, documentId?: string) => boolean;
+  /** Check if a single category is locked under the current mode */
+  isCategoryLocked: (category: string, documentId?: string) => boolean;
+  /** Check if a tool (by ID) is locked under the current mode (resolves tool categories) */
+  isToolLocked: (toolId: string, documentId?: string) => boolean;
+
+  /** Update annotation object state without marking dirty or triggering commits. Used by the form plugin to sync PDFium state to the UI. */
+  syncAnnotationObject: (
+    id: string,
+    patch: Partial<PdfAnnotationObject>,
+    documentId?: string,
+  ) => void;
+
+  /** Navigate to a link target. Returns a result indicating whether the plugin handled it or the caller should open a URI. */
+  navigateTarget: (
+    target: PdfLinkTarget,
+    documentId?: string,
+  ) => Task<NavigateTargetResult, PdfErrorReason>;
+
   // Document-scoped operations
-  forDocument: (documentId: string) => AnnotationScope;
+  forDocument: (documentId: string) => AnnotationScope<TTools>;
 
   // Global operations (shared across documents)
-  getActiveTool: () => AnnotationTool | null;
-  setActiveTool: (toolId: string | null) => void;
-  getTools: () => AnnotationTool[];
-  getTool: <T extends AnnotationTool>(toolId: string) => T | undefined;
-  addTool: <T extends AnnotationTool>(tool: T) => void;
-  findToolForAnnotation: (annotation: PdfAnnotationObject) => AnnotationTool | null;
-  setToolDefaults: (toolId: string, patch: Partial<any>) => void;
+  getActiveTool: () => ToolUnion<TTools> | null;
+  setActiveTool: {
+    <TId extends ToolId<TTools>>(toolId: TId | null): void;
+    (toolId: string | null): void;
+  };
+  getTools: () => Array<ToolUnion<TTools>>;
+  getTool: {
+    <TId extends ToolId<TTools>>(toolId: TId): ToolEntry<TTools, TId> | undefined;
+    (toolId: string): AnnotationTool | undefined;
+  };
+  addTool: <T extends AnnotationTool<any> = AnnotationTool<any>>(tool: T) => void;
+  findToolForAnnotation: (annotation: PdfAnnotationObject) => ToolUnion<TTools> | null;
+  setToolDefaults: {
+    <TId extends ToolId<TTools>>(
+      toolId: TId,
+      patch: Partial<ToolById<TTools, TId>['defaults']>,
+    ): void;
+    (toolId: string, patch: Partial<PdfAnnotationObject> & Record<string, unknown>): void;
+  };
 
   getColorPresets: () => string[];
   addColorPreset: (color: string) => void;
@@ -412,20 +508,13 @@ export interface AnnotationCapability {
     annotation: T,
     options: TransformOptions<T>,
   ) => Partial<T>;
-  /**
-   * Register a custom patch function for a specific annotation type.
-   * This allows extending the transformation logic for custom annotations.
-   */
-  registerPatchFunction: <T extends PdfAnnotationObject>(
-    type: PdfAnnotationSubtype,
-    patchFn: PatchFunction<T>,
-  ) => void;
 
   // Events (include documentId)
   onStateChange: EventHook<AnnotationStateChangeEvent>;
   onActiveToolChange: EventHook<AnnotationActiveToolChangeEvent>;
   onAnnotationEvent: EventHook<AnnotationEvent>;
   onToolsChange: EventHook<AnnotationToolsChangeEvent>;
+  onNavigate: EventHook<NavigateEvent>;
 }
 
 export interface GetPageAnnotationsOptions {

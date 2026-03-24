@@ -51,8 +51,10 @@
   // For solid/dashed, render a rectangle border
   const isUnderline = $derived(strokeStyle === PdfAnnotationBorderStyle.UNDERLINE);
 
-  const hitAreaCursor = $derived(hasIRT ? 'default' : isSelected ? 'move' : 'pointer');
-  const hitAreaPointerEvents = $derived(hasIRT ? 'none' : isSelected ? 'none' : 'visible');
+  const hitAreaCursor = $derived(hasIRT || !onClick ? 'default' : isSelected ? 'move' : 'pointer');
+  const hitAreaPointerEvents = $derived(
+    hasIRT || !onClick ? 'none' : isSelected ? 'none' : 'visible',
+  );
 </script>
 
 <svg

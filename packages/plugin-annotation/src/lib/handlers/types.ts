@@ -87,6 +87,14 @@ export interface FreeTextPreviewData {
   contents?: string;
 }
 
+export interface LinkPreviewData {
+  rect: Rect;
+  strokeColor: string;
+  strokeWidth: number;
+  strokeStyle: PdfAnnotationBorderStyle;
+  strokeDashArray: number[];
+}
+
 /**
  * Map types to their preview data
  */
@@ -98,7 +106,7 @@ export interface PreviewDataMap {
   [PdfAnnotationSubtype.LINE]: LinePreviewData;
   [PdfAnnotationSubtype.INK]: InkPreviewData;
   [PdfAnnotationSubtype.FREETEXT]: FreeTextPreviewData;
-  // Add other types as you implement them
+  [PdfAnnotationSubtype.LINK]: LinkPreviewData;
 }
 
 /**
@@ -158,7 +166,7 @@ export interface HandlerContext<A extends PdfAnnotationObject> {
   pageRotation: Rotation;
   scale: number;
   services: HandlerServices;
-  onPreview: (state: AnyPreviewState | null) => void;
+  onPreview: (state: PreviewState<A['type']> | null) => void;
   onCommit: (annotation: A, context?: AnnotationCreateContext<A>) => void;
 }
 

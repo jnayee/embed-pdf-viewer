@@ -5,8 +5,8 @@
       width: '100%',
       height: '100%',
       zIndex: 2,
-      pointerEvents: isSelected ? 'none' : 'auto',
-      cursor: 'pointer',
+      pointerEvents: !onClick ? 'none' : isSelected ? 'none' : 'auto',
+      cursor: onClick ? 'pointer' : 'default',
     }"
     @pointerdown="onClick"
   >
@@ -36,7 +36,7 @@ const props = defineProps<{
   documentId: string;
   pageIndex: number;
   scale: number;
-  onClick: (e: PointerEvent) => void;
+  onClick?: (e: PointerEvent) => void;
 }>();
 
 const unrotated = computed(

@@ -6,7 +6,7 @@
     textAlignmentToCss,
   } from '@embedpdf/models';
   import type { TrackedAnnotation } from '@embedpdf/plugin-annotation';
-  import { useAnnotationCapability } from '../../hooks';
+  import { useAnnotationCapability, useIOSZoomPrevention } from '../../hooks';
 
   interface FreeTextProps {
     documentId: string;
@@ -38,7 +38,6 @@
   );
 
   let editorRef: HTMLSpanElement | null = null;
-  let isIOS = $state(false);
   let editingRef = false;
 
   $effect(() => {
@@ -62,18 +61,6 @@
     selection.addRange(range);
   });
 
-  $effect.pre(() => {
-    try {
-      const nav = navigator as any;
-      const ios =
-        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === 'MacIntel' && nav?.maxTouchPoints > 1);
-      isIOS = ios;
-    } catch {
-      isIOS = false;
-    }
-  });
-
   function handleBlur() {
     if (!editingRef) return;
     editingRef = false;
@@ -83,14 +70,11 @@
     });
   }
 
-  const computedFontPx = $derived(annotation.object.fontSize * scale);
-  const MIN_IOS_FOCUS_FONT_PX = 16;
-  const needsComp = $derived(
-    isIOS && isEditing && computedFontPx > 0 && computedFontPx < MIN_IOS_FOCUS_FONT_PX,
+  const ios = useIOSZoomPrevention(
+    () => annotation.object.fontSize * scale,
+    () => isEditing,
   );
-  const adjustedFontPx = $derived(needsComp ? MIN_IOS_FOCUS_FONT_PX : computedFontPx);
-  const scaleComp = $derived(needsComp ? computedFontPx / MIN_IOS_FOCUS_FONT_PX : 1);
-  const invScalePercent = $derived(needsComp ? 100 / scaleComp : 100);
+  const invScalePercent = $derived(ios.needsComp ? 100 / ios.scaleComp : 100);
 
   const outerW = $derived(annotation.object.rect.size.width * scale);
   const outerH = $derived(annotation.object.rect.size.height * scale);
@@ -114,7 +98,7 @@
   style:height={`${outerH}px`}
   style:z-index={2}
   style:cursor={isSelected && !isEditing ? 'move' : 'default'}
-  style:pointer-events={isSelected && !isEditing ? 'none' : 'auto'}
+  style:pointer-events={!onClick ? 'none' : isSelected && !isEditing ? 'none' : 'auto'}
   style:opacity={appearanceActive ? 0 : 1}
   onpointerdown={onClick}
 >
@@ -128,20 +112,20 @@
     style:flex-direction="column"
     style:justify-content={justify}
     style:color={annotation.object.fontColor}
-    style:font-size={`${adjustedFontPx}px`}
+    style:font-size={`${ios.adjustedFontPx}px`}
     style:font-family={fontCss.fontFamily}
     style:font-weight={fontCss.fontWeight}
     style:font-style={fontCss.fontStyle}
     style:text-align={textAlignmentToCss(annotation.object.textAlign)}
     style:background-color={annotation.object.color ?? annotation.object.backgroundColor}
     style:opacity={annotation.object.opacity}
-    style:width={needsComp ? `${invScalePercent}%` : '100%'}
-    style:height={needsComp ? `${invScalePercent}%` : '100%'}
+    style:width={ios.needsComp ? `${invScalePercent}%` : '100%'}
+    style:height={ios.needsComp ? `${invScalePercent}%` : '100%'}
     style:line-height="1.18"
     style:overflow="hidden"
-    style:cursor={isEditing ? 'text' : 'pointer'}
+    style:cursor={isEditing ? 'text' : onClick ? 'pointer' : 'default'}
     style:outline="none"
-    style:transform={needsComp ? `scale(${scaleComp})` : undefined}
+    style:transform={ios.needsComp ? `scale(${ios.scaleComp})` : undefined}
     style:transform-origin="top left">{annotation.object.contents}</span
   >
 </div>

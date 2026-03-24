@@ -86,8 +86,8 @@ export function Link({
         fill="transparent"
         onPointerDown={hasIRT ? undefined : onClick}
         style={{
-          cursor: hasIRT ? 'default' : isSelected ? 'move' : 'pointer',
-          pointerEvents: hasIRT ? 'none' : isSelected ? 'none' : 'visible',
+          cursor: hasIRT || !onClick ? 'default' : isSelected ? 'move' : 'pointer',
+          pointerEvents: hasIRT || !onClick ? 'none' : isSelected ? 'none' : 'visible',
         }}
       />
 

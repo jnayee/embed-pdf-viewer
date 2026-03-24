@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AnyPreviewState } from '@embedpdf/plugin-annotation';
+  import type { PreviewState } from '@embedpdf/plugin-annotation';
   import { blendModeToCss, PdfAnnotationSubtype, PdfBlendMode } from '@embedpdf/models';
   import Circle from './annotations/Circle.svelte';
   import Square from './annotations/Square.svelte';
@@ -7,13 +7,17 @@
   import Polyline from './annotations/Polyline.svelte';
   import Line from './annotations/Line.svelte';
   import Ink from './annotations/Ink.svelte';
+  import { getRendererRegistry } from '../context/renderer-registry.svelte';
 
   interface PreviewRendererProps {
-    preview: AnyPreviewState;
+    toolId: string;
+    preview: PreviewState;
     scale: number;
   }
 
-  let { preview, scale }: PreviewRendererProps = $props();
+  let { toolId, preview, scale }: PreviewRendererProps = $props();
+
+  const registry = getRendererRegistry();
 
   const bounds = $derived(preview.bounds);
 
@@ -108,7 +112,6 @@
     style:pointer-events="none"
     style:z-index="10"
   >
-    <!-- Render a simple dashed border preview -->
     <div
       style:width="100%"
       style:height="100%"
@@ -116,4 +119,20 @@
       style:background-color="transparent"
     ></div>
   </div>
+{:else}
+  {@const match = registry?.getAll().find((r) => r.id === toolId && r.renderPreview)}
+  {#if match?.renderPreview}
+    {@const PreviewComponent = match.renderPreview}
+    <div
+      style:position="absolute"
+      style:left="{style.left}px"
+      style:top="{style.top}px"
+      style:width="{style.width}px"
+      style:height="{style.height}px"
+      style:pointer-events="none"
+      style:z-index="10"
+    >
+      <PreviewComponent data={preview.data} bounds={preview.bounds} {scale} />
+    </div>
+  {/if}
 {/if}

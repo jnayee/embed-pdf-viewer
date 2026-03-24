@@ -18,12 +18,15 @@ import {
   PdfCaretAnnoObject,
   PdfTextAnnoObject,
 } from '@embedpdf/models';
+import type { LinkPreviewData } from '@embedpdf/plugin-annotation';
 import type {
   BoxedAnnotationRenderer,
   AnnotationInteractionEvent,
   SelectOverrideHelpers,
 } from '../context';
 import { createRenderer } from '../context/renderer-registry.svelte';
+import LinkLockedMode from './annotations/LinkLockedMode.svelte';
+import LinkPreview from './annotations/LinkPreview.svelte';
 
 import InkWrapper from './renderers/InkRenderer.svelte';
 import SquareWrapper from './renderers/SquareRenderer.svelte';
@@ -163,11 +166,12 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
-  createRenderer<PdfLinkAnnoObject>({
+  createRenderer<PdfLinkAnnoObject, LinkPreviewData>({
     id: 'link',
     matches: (a): a is PdfLinkAnnoObject => a.type === PdfAnnotationSubtype.LINK,
     component: LinkWrapper,
-    interactionDefaults: { isDraggable: false, isResizable: false, isRotatable: false },
+    renderPreview: LinkPreview,
+    interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: false },
     useAppearanceStream: false,
     selectOverride: (e, annotation, helpers) => {
       e.stopPropagation();
@@ -184,5 +188,6 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
       helpers.selectAnnotation(helpers.pageIndex, annotation.object.id);
     },
     hideSelectionMenu: (a) => !!a.inReplyToId,
+    renderLocked: LinkLockedMode,
   }),
 ];

@@ -69,7 +69,7 @@
   let hitStrokeWidth = $derived(Math.max(strokeWidth, MIN_HIT_AREA_SCREEN_PX / scale));
 
   let peValue = $derived(
-    isSelected ? 'none' : color === 'transparent' ? 'visibleStroke' : 'visible',
+    !onClick ? 'none' : isSelected ? 'none' : color === 'transparent' ? 'visibleStroke' : 'visible',
   );
 </script>
 
@@ -93,7 +93,7 @@
       stroke="transparent"
       stroke-width={hitStrokeWidth}
       onpointerdown={(e) => onClick?.(e)}
-      style:cursor={isSelected ? 'move' : 'pointer'}
+      style:cursor={isSelected ? 'move' : onClick ? 'pointer' : 'default'}
       pointer-events={peValue}
     />
   {:else}
@@ -106,7 +106,7 @@
       stroke="transparent"
       stroke-width={hitStrokeWidth}
       onpointerdown={(e) => onClick?.(e)}
-      style:cursor={isSelected ? 'move' : 'pointer'}
+      style:cursor={isSelected ? 'move' : onClick ? 'pointer' : 'default'}
       pointer-events={peValue}
     />
   {/if}

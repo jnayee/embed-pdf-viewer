@@ -69,7 +69,8 @@ import { ThumbnailPluginPackage } from '@embedpdf/plugin-thumbnail/vue';
 import { CapturePluginPackage } from '@embedpdf/plugin-capture/vue';
 import { FullscreenPluginPackage } from '@embedpdf/plugin-fullscreen/vue';
 import { HistoryPluginPackage } from '@embedpdf/plugin-history/vue';
-import { AnnotationPluginPackage } from '@embedpdf/plugin-annotation/vue';
+import { AnnotationPluginPackage, LockModeType } from '@embedpdf/plugin-annotation/vue';
+import { FormPluginPackage } from '@embedpdf/plugin-form/vue';
 import { CommandsPluginPackage } from '@embedpdf/plugin-commands/vue';
 import { I18nPluginPackage } from '@embedpdf/plugin-i18n/vue';
 import { UIPluginPackage, UIProvider } from '@embedpdf/plugin-ui/vue';
@@ -168,7 +169,10 @@ const plugins = computed(() => [
   }),
   createPluginRegistration(CapturePluginPackage),
   createPluginRegistration(HistoryPluginPackage),
-  createPluginRegistration(AnnotationPluginPackage),
+  createPluginRegistration(AnnotationPluginPackage, {
+    locked: { type: LockModeType.Include, categories: ['form'] },
+  }),
+  createPluginRegistration(FormPluginPackage),
   createPluginRegistration(FullscreenPluginPackage),
   createPluginRegistration(ThumbnailPluginPackage, {
     width: 120,

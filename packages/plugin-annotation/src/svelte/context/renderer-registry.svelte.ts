@@ -53,8 +53,8 @@ export function getRendererRegistry(): AnnotationRendererRegistry | null {
 /**
  * Factory to create a boxed renderer from a typed entry.
  */
-export function createRenderer<T extends PdfAnnotationObject>(
-  entry: AnnotationRendererEntry<T>,
+export function createRenderer<T extends PdfAnnotationObject, P = never>(
+  entry: AnnotationRendererEntry<T, P>,
 ): BoxedAnnotationRenderer {
   return {
     id: entry.id,
@@ -74,6 +74,9 @@ export function createRenderer<T extends PdfAnnotationObject>(
     hideSelectionMenu: entry.hideSelectionMenu as
       | ((annotation: PdfAnnotationObject) => boolean)
       | undefined,
+    renderPreview: entry.renderPreview as BoxedAnnotationRenderer['renderPreview'],
+    hiddenWhenLocked: entry.hiddenWhenLocked,
+    renderLocked: entry.renderLocked as BoxedAnnotationRenderer['renderLocked'],
   };
 }
 

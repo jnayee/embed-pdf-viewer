@@ -72,6 +72,7 @@ import {
   AnnotationLayer,
   AnnotationPluginPackage,
   AnnotationPluginConfig,
+  LockModeType,
 } from '@embedpdf/plugin-annotation/preact';
 import { PrintPluginPackage, PrintPluginConfig } from '@embedpdf/plugin-print/preact';
 import {
@@ -102,6 +103,7 @@ import {
   AttachmentPluginPackage,
   AttachmentPluginConfig,
 } from '@embedpdf/plugin-attachment/preact';
+import { FormPluginPackage, FormPluginConfig } from '@embedpdf/plugin-form/preact';
 
 import { SchemaToolbar } from '@/ui/schema-toolbar';
 import { SchemaSidebar } from '@/ui/schema-sidebar';
@@ -116,6 +118,7 @@ import { CommentSidebar } from '@/components/comment-sidebar';
 import { CustomZoomToolbar } from '@/components/custom-zoom-toolbar';
 import { AnnotationSidebar } from '@/components/annotation-sidebar';
 import { RedactionSidebar } from '@/components/redaction-sidebar';
+import { WidgetEditSidebar } from '@/components/widget-edit-sidebar';
 import { SchemaSelectionMenu } from '@/ui/schema-selection-menu';
 import { SchemaOverlay } from '@/ui/schema-overlay';
 import { PrintModal } from '@/components/print-modal';
@@ -227,7 +230,8 @@ export interface PDFViewerConfig {
   i18n?: Partial<I18nPluginConfig>;
   /** UI schema options (schema, disabledCategories) */
   ui?: Partial<UIPluginConfig>;
-
+  /** Form options (withForms, withAnnotations) */
+  form?: Partial<FormPluginConfig>;
   // Viewport & Navigation
   /** Viewport options (viewportGap, scrollEndDelay) */
   viewport?: Partial<ViewportPluginConfig>;
@@ -317,7 +321,9 @@ const DEFAULTS = {
   thumbnails: { width: 150, gap: 10, buffer: 3, labelHeight: 30 } as ThumbnailPluginConfig,
 
   // Content features
-  annotations: {} as AnnotationPluginConfig,
+  annotations: {
+    locked: { type: LockModeType.Include, categories: ['form'] },
+  } as AnnotationPluginConfig,
   search: {} as SearchPluginConfig,
   selection: {} as SelectionPluginConfig,
   bookmarks: {} as BookmarkPluginConfig,
@@ -333,6 +339,7 @@ const DEFAULTS = {
   // Infrastructure
   history: {} as HistoryPluginConfig,
   interactionManager: {} as InteractionManagerPluginConfig,
+  form: {} as FormPluginConfig,
 };
 
 // Props for the PDFViewer Component
@@ -486,6 +493,7 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
       'search-sidebar': SearchSidebar,
       'outline-sidebar': OutlineSidebar,
       'comment-sidebar': CommentSidebar,
+      'widget-edit-sidebar': WidgetEditSidebar,
       'print-modal': PrintModal,
       'link-modal': LinkModal,
       'protect-modal': ProtectModal,
@@ -622,6 +630,7 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
             ...DEFAULTS.interactionManager,
             ...config.interactionManager,
           }),
+          createPluginRegistration(FormPluginPackage, { ...DEFAULTS.form, ...config.form }),
         ]}
       >
         {({ pluginsReady, activeDocumentId }) => (

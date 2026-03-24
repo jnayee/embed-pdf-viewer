@@ -45,19 +45,33 @@
         backgroundColor: 'transparent',
       }"
     />
+    <component
+      v-else-if="customMatch?.renderPreview"
+      :is="customMatch.renderPreview"
+      :data="preview.data"
+      :bounds="preview.bounds"
+      :scale="scale"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, CSSProperties } from 'vue';
-import { AnyPreviewState } from '@embedpdf/plugin-annotation';
+import { PreviewState } from '@embedpdf/plugin-annotation';
 import { blendModeToCss, PdfAnnotationSubtype, PdfBlendMode } from '@embedpdf/models';
 import { Circle, Square, Polygon, Polyline, Line, Ink } from './annotations';
+import { useRendererRegistry } from '../context/renderer-registry';
 
 const props = defineProps<{
-  preview: AnyPreviewState;
+  toolId: string;
+  preview: PreviewState;
   scale: number;
 }>();
+
+const registry = useRendererRegistry();
+const customMatch = computed(
+  () => registry?.getAll().find((r) => r.id === props.toolId && r.renderPreview) ?? null,
+);
 
 const style = computed<CSSProperties>(() => {
   const base: CSSProperties = {

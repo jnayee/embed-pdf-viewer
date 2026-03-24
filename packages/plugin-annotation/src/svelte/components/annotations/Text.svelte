@@ -25,8 +25,8 @@
   style:position="absolute"
   style:inset="0"
   style:z-index="2"
-  style:pointer-events={isSelected ? 'none' : 'auto'}
-  style:cursor={isSelected ? 'move' : 'pointer'}
+  style:pointer-events={!onClick ? 'none' : isSelected ? 'none' : 'auto'}
+  style:cursor={isSelected ? 'move' : onClick ? 'pointer' : 'default'}
   onpointerdown={onClick}
 >
   {#if !appearanceActive}

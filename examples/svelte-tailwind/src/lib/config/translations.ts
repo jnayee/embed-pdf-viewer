@@ -60,10 +60,19 @@ export const englishTranslations: Locale = {
       view: 'View',
       annotate: 'Annotate',
       shapes: 'Shapes',
+      form: 'Form',
       redact: 'Redact',
     },
     tabs: {
       overflowMenu: 'More tabs',
+    },
+    form: {
+      textfield: 'Text Field',
+      checkbox: 'Checkbox',
+      radio: 'Radio Button',
+      select: 'Dropdown',
+      listbox: 'List Box',
+      toggleFillMode: 'Toggle Fill Mode',
     },
     annotation: {
       text: 'Text',
@@ -213,10 +222,19 @@ export const spanishTranslations: Locale = {
       view: 'Ver',
       annotate: 'Anotar',
       shapes: 'Formas',
+      form: 'Formulario',
       redact: 'Redactar',
     },
     tabs: {
       overflowMenu: 'Más pestañas',
+    },
+    form: {
+      textfield: 'Campo de texto',
+      checkbox: 'Casilla',
+      radio: 'Botón de radio',
+      select: 'Desplegable',
+      listbox: 'Cuadro de lista',
+      toggleFillMode: 'Modo de llenado',
     },
     annotation: {
       text: 'Texto',
@@ -367,10 +385,19 @@ export const germanTranslations: Locale = {
       view: 'Ansicht',
       annotate: 'Annotieren',
       shapes: 'Formen',
+      form: 'Formular',
       redact: 'Schwärzen',
     },
     tabs: {
       overflowMenu: 'Weitere Tabs',
+    },
+    form: {
+      textfield: 'Textfeld',
+      checkbox: 'Kontrollkästchen',
+      radio: 'Optionsfeld',
+      select: 'Dropdown',
+      listbox: 'Listenfeld',
+      toggleFillMode: 'Ausfüllmodus',
     },
     annotation: {
       text: 'Text',
@@ -521,10 +548,19 @@ export const dutchTranslations: Locale = {
       view: 'Weergave',
       annotate: 'Annoteren',
       shapes: 'Vormen',
+      form: 'Formulier',
       redact: 'Redigeren',
     },
     tabs: {
       overflowMenu: 'Meer tabbladen',
+    },
+    form: {
+      textfield: 'Tekstveld',
+      checkbox: 'Selectievakje',
+      radio: 'Keuzerondje',
+      select: 'Dropdown',
+      listbox: 'Keuzelijst',
+      toggleFillMode: 'Invulmodus',
     },
     annotation: {
       text: 'Tekst',

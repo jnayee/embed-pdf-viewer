@@ -7,6 +7,7 @@ import { RotatePlugin } from '@embedpdf/plugin-rotate/vue';
 import {
   ANNOTATION_PLUGIN_ID,
   AnnotationPlugin,
+  LockModeType,
   getToolDefaultsById,
 } from '@embedpdf/plugin-annotation/vue';
 import {
@@ -638,9 +639,14 @@ export const commands: Record<string, Command<State>> = {
       const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
       if (!ui) return;
       ui.forDocument(documentId).closeToolbarSlot('top', 'secondary');
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.Include, categories: ['form'] });
     },
     active: ({ state, documentId }) => {
-      // Active if no secondary toolbar is shown
       return !isToolbarOpen(state.plugins, documentId, 'top', 'secondary');
     },
   },
@@ -653,8 +659,13 @@ export const commands: Record<string, Command<State>> = {
       const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
       if (!ui) return;
 
-      // Show the annotation toolbar
       ui.setActiveToolbar('top', 'secondary', 'annotation-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.Include, categories: ['form'] });
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'annotation-toolbar');
@@ -669,11 +680,37 @@ export const commands: Record<string, Command<State>> = {
       const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
       if (!ui) return;
 
-      // Show the annotation toolbar (shapes use the same toolbar)
       ui.setActiveToolbar('top', 'secondary', 'shapes-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.Include, categories: ['form'] });
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'shapes-toolbar');
+    },
+  },
+
+  'mode:form': {
+    id: 'mode:form',
+    labelKey: 'mode.form',
+    categories: ['mode'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
+      if (!ui) return;
+
+      ui.setActiveToolbar('top', 'secondary', 'form-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.None });
+    },
+    active: ({ state, documentId }) => {
+      return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'form-toolbar');
     },
   },
 
@@ -685,11 +722,15 @@ export const commands: Record<string, Command<State>> = {
       const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
       if (!ui) return;
 
-      // Show the redaction toolbar
       ui.setActiveToolbar('top', 'secondary', 'redaction-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.Include, categories: ['form'] });
     },
     active: ({ state, documentId }) => {
-      // Active when redaction toolbar is shown
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'redaction-toolbar');
     },
   },
@@ -1511,6 +1552,145 @@ export const commands: Record<string, Command<State>> = {
     },
     disabled: ({ state, documentId }) => {
       return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // Form Commands
+  // ─────────────────────────────────────────────────────────
+  'form:add-textfield': {
+    id: 'form:add-textfield',
+    labelKey: 'form.textfield',
+    icon: 'FormTextfield',
+    categories: ['form'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formTextField') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formTextField');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formTextField';
+    },
+  },
+
+  'form:add-checkbox': {
+    id: 'form:add-checkbox',
+    labelKey: 'form.checkbox',
+    icon: 'FormCheckbox',
+    categories: ['form'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formCheckbox') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formCheckbox');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formCheckbox';
+    },
+  },
+
+  'form:add-radio': {
+    id: 'form:add-radio',
+    labelKey: 'form.radio',
+    icon: 'FormRadio',
+    categories: ['form'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formRadioButton') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formRadioButton');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formRadioButton';
+    },
+  },
+
+  'form:add-select': {
+    id: 'form:add-select',
+    labelKey: 'form.select',
+    icon: 'FormSelect',
+    categories: ['form'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formCombobox') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formCombobox');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formCombobox';
+    },
+  },
+
+  'form:add-listbox': {
+    id: 'form:add-listbox',
+    labelKey: 'form.listbox',
+    icon: 'FormListbox',
+    categories: ['form'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formListbox') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formListbox');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formListbox';
+    },
+  },
+
+  'form:toggle-fill-mode': {
+    id: 'form:toggle-fill-mode',
+    labelKey: 'form.toggleFillMode',
+    icon: 'WidgetEdit',
+    categories: ['form'],
+    action: ({ registry, documentId }) => {
+      const scope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!scope) return;
+      if (scope.isCategoryLocked('form')) {
+        scope.setLocked({ type: LockModeType.None });
+      } else {
+        scope.setLocked({ type: LockModeType.Include, categories: ['form'] });
+      }
+    },
+    active: ({ registry, documentId }) => {
+      const scope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      return !(scope?.isCategoryLocked('form') ?? true);
     },
   },
 };

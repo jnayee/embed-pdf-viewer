@@ -1,5 +1,5 @@
 import type { Component } from 'svelte';
-import type { PdfAnnotationObject, PdfBlendMode } from '@embedpdf/models';
+import type { PdfAnnotationObject, PdfBlendMode, Rect } from '@embedpdf/models';
 import type { TrackedAnnotation } from '@embedpdf/plugin-annotation';
 import type { VertexConfig } from '../../shared/types';
 
@@ -19,7 +19,7 @@ export interface AnnotationRendererProps<T extends PdfAnnotationObject = PdfAnno
   scale: number;
   pageIndex: number;
   documentId: string;
-  onClick: (e: AnnotationInteractionEvent) => void;
+  onClick?: (e: AnnotationInteractionEvent) => void;
   /** When true, AP canvas provides the visual; component should only render hit area */
   appearanceActive: boolean;
 }
@@ -39,7 +39,10 @@ export interface SelectOverrideHelpers {
  * Entry for defining a custom annotation renderer.
  * Type safety enforced at definition time via generic.
  */
-export interface AnnotationRendererEntry<T extends PdfAnnotationObject = PdfAnnotationObject> {
+export interface AnnotationRendererEntry<
+  T extends PdfAnnotationObject = PdfAnnotationObject,
+  P = never,
+> {
   /** Unique identifier for this renderer */
   id: string;
   /** Returns true if this renderer handles the annotation */
@@ -76,6 +79,12 @@ export interface AnnotationRendererEntry<T extends PdfAnnotationObject = PdfAnno
   ) => void;
   /** Return true to hide the selection menu for this annotation */
   hideSelectionMenu?: (annotation: T) => boolean;
+  /** Render a preview during drag-to-create. P is the preview data type. */
+  renderPreview?: Component<{ data: P; bounds: Rect; scale: number }>;
+  /** When true, the annotation is completely hidden when locked (e.g., form widgets defer to the form-filling layer). */
+  hiddenWhenLocked?: boolean;
+  /** Optional locked-mode renderer. When the annotation is locked, this replaces `component` inside the container. */
+  renderLocked?: Component<AnnotationRendererProps<T>>;
 }
 
 /**
@@ -105,4 +114,7 @@ export interface BoxedAnnotationRenderer {
     helpers: SelectOverrideHelpers,
   ) => void;
   hideSelectionMenu?: (annotation: PdfAnnotationObject) => boolean;
+  renderPreview?: Component<{ data: unknown; bounds: Rect; scale: number }>;
+  hiddenWhenLocked?: boolean;
+  renderLocked?: Component<AnnotationRendererProps>;
 }

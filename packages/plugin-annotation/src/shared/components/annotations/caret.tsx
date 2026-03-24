@@ -72,8 +72,8 @@ export function Caret({
         strokeWidth={4}
         onPointerDown={onClick}
         style={{
-          cursor: isSelected ? 'move' : 'pointer',
-          pointerEvents: isSelected ? 'none' : 'visible',
+          cursor: isSelected ? 'move' : onClick ? 'pointer' : 'default',
+          pointerEvents: !onClick ? 'none' : isSelected ? 'none' : 'visible',
         }}
       />
       {/* Visual */}
