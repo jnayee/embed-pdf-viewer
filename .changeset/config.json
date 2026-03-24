@@ -15,6 +15,7 @@
       "@embedpdf/plugin-document-manager",
       "@embedpdf/plugin-export",
       "@embedpdf/plugin-fullscreen",
+      "@embedpdf/plugin-form",
       "@embedpdf/plugin-history",
       "@embedpdf/plugin-i18n",
       "@embedpdf/plugin-interaction-manager",
