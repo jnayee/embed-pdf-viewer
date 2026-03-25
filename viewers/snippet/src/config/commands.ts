@@ -865,7 +865,7 @@ export const commands: Record<string, Command<State>> = {
   'mode:form': {
     id: 'mode:form',
     labelKey: 'mode.form',
-    categories: ['mode', 'mode-form', 'annotation', 'form'],
+    categories: ['mode', 'mode-form', 'form'],
     action: ({ registry, documentId }) => {
       const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
       if (!ui) return;
@@ -906,6 +906,9 @@ export const commands: Record<string, Command<State>> = {
       const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
       return annotation?.activeToolId === 'formTextField';
     },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
   },
 
   'form:add-checkbox': {
@@ -927,6 +930,9 @@ export const commands: Record<string, Command<State>> = {
     active: ({ state, documentId }) => {
       const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
       return annotation?.activeToolId === 'formCheckbox';
+    },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
     },
   },
 
@@ -950,6 +956,9 @@ export const commands: Record<string, Command<State>> = {
       const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
       return annotation?.activeToolId === 'formRadioButton';
     },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
   },
 
   'form:add-select': {
@@ -972,6 +981,9 @@ export const commands: Record<string, Command<State>> = {
       const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
       return annotation?.activeToolId === 'formCombobox';
     },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
   },
 
   'form:add-listbox': {
@@ -993,6 +1005,9 @@ export const commands: Record<string, Command<State>> = {
     active: ({ state, documentId }) => {
       const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
       return annotation?.activeToolId === 'formListbox';
+    },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
     },
   },
 

@@ -284,7 +284,7 @@ export const viewerUISchema: UISchema = {
               id: 'form-mode',
               commandId: 'mode:form',
               variant: 'text',
-              categories: ['mode', 'mode-form', 'annotation', 'form'],
+              categories: ['mode', 'mode-form', 'form'],
             },
             {
               id: 'redact-mode',
@@ -638,7 +638,7 @@ export const viewerUISchema: UISchema = {
         order: 0,
       },
       permanent: false,
-      categories: ['annotation', 'form'],
+      categories: ['form'],
       items: [
         { type: 'spacer', id: 'spacer-form-1', flex: true },
         {
@@ -868,7 +868,7 @@ export const viewerUISchema: UISchema = {
           type: 'command',
           id: 'mode:form',
           commandId: 'mode:form',
-          categories: ['mode', 'mode-form', 'annotation', 'form'],
+          categories: ['mode', 'mode-form', 'form'],
         },
         {
           type: 'command',

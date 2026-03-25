@@ -85,6 +85,15 @@ export {
   type SelectionScope,
 } from '@embedpdf/plugin-selection/preact';
 export {
+  FormPlugin,
+  type FormPluginConfig,
+  type FormCapability,
+  type FormScope,
+  type FormFieldInfo,
+  type FormReadyEvent,
+  type FieldValueChangeEvent,
+} from '@embedpdf/plugin-form/preact';
+export {
   CapturePlugin,
   type CapturePluginConfig,
   type CaptureCapability,
