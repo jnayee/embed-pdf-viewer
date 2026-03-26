@@ -7,6 +7,7 @@ import {
 import {
   ignore,
   PdfAnnotationObject,
+  PdfAnnotationSubtype,
   PdfDocumentObject,
   PdfErrorReason,
   Task,
@@ -108,10 +109,23 @@ import { AnnotationTool, AnnotationToolMap, ToolById, ToolId } from './tools/typ
 import {
   PreviewState,
   HandlerContext,
+  HandlerFactory,
   HandlerServices,
   SelectionHandlerContext,
 } from './handlers/types';
-import { textMarkupSelectionHandler } from './handlers';
+import {
+  textMarkupSelectionHandler,
+  circleHandlerFactory,
+  squareHandlerFactory,
+  stampHandlerFactory,
+  polygonHandlerFactory,
+  polylineHandlerFactory,
+  lineHandlerFactory,
+  inkHandlerFactory,
+  freeTextHandlerFactory,
+  textHandlerFactory,
+  linkHandlerFactory,
+} from './handlers';
 import {
   rectsIntersect,
   isSidebarAnnotation,
@@ -136,6 +150,22 @@ export class AnnotationPlugin extends BasePlugin<
 > {
   static readonly id = 'annotation' as const;
   private readonly ANNOTATION_HISTORY_TOPIC = 'annotations';
+
+  private static readonly defaultHandlerFactories = new Map<
+    PdfAnnotationSubtype,
+    HandlerFactory<any>
+  >([
+    [PdfAnnotationSubtype.CIRCLE, circleHandlerFactory],
+    [PdfAnnotationSubtype.SQUARE, squareHandlerFactory],
+    [PdfAnnotationSubtype.STAMP, stampHandlerFactory],
+    [PdfAnnotationSubtype.POLYGON, polygonHandlerFactory],
+    [PdfAnnotationSubtype.POLYLINE, polylineHandlerFactory],
+    [PdfAnnotationSubtype.LINE, lineHandlerFactory],
+    [PdfAnnotationSubtype.INK, inkHandlerFactory],
+    [PdfAnnotationSubtype.FREETEXT, freeTextHandlerFactory],
+    [PdfAnnotationSubtype.TEXT, textHandlerFactory],
+    [PdfAnnotationSubtype.LINK, linkHandlerFactory],
+  ]);
 
   public readonly config: AnnotationPluginConfig;
   private readonly state$ = createScopedEmitter<
@@ -591,7 +621,11 @@ export class AnnotationPlugin extends BasePlugin<
       4) as Rotation;
 
     for (const tool of this.state.tools) {
-      const factory = tool.pointerHandler;
+      const factory =
+        tool.pointerHandler ??
+        (tool.defaults?.type
+          ? AnnotationPlugin.defaultHandlerFactories.get(tool.defaults.type)
+          : undefined);
       if (!factory) continue;
 
       const context: HandlerContext<PdfAnnotationObject> = {
