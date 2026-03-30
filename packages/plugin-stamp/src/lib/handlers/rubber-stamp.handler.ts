@@ -7,8 +7,12 @@ import {
 } from '@embedpdf/models';
 import { HandlerFactory } from '@embedpdf/plugin-annotation';
 import { applyInsertUpright, clampAnnotationToPage } from '@embedpdf/plugin-annotation';
+import { RUBBER_STAMP_TOOL_ID } from '../tools';
 
-export const rubberStampHandlerFactory: HandlerFactory<PdfStampAnnoObject, 'rubberStamp'> = {
+export const rubberStampHandlerFactory: HandlerFactory<
+  PdfStampAnnoObject,
+  typeof RUBBER_STAMP_TOOL_ID
+> = {
   annotationType: PdfAnnotationSubtype.STAMP,
   create(context) {
     const { onPreview, onCommit, getTool, pageSize, pageRotation, getToolContext } = context;

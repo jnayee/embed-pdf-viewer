@@ -4122,9 +4122,6 @@ export class PdfiumNative implements IPdfiumExecutor {
     if (stampName && !this.setAnnotationName(annotationPtr, stampName)) {
       return false;
     }
-    if (annotation.subject && !this.setAnnotString(annotationPtr, 'Subj', annotation.subject)) {
-      return false;
-    }
 
     if (context && 'appearance' in context && context.appearance) {
       if (!this.setAppearanceFromPdf(docPtr, annotationPtr, context.appearance)) {
@@ -8547,6 +8544,10 @@ export class PdfiumNative implements IPdfiumExecutor {
       return false;
     }
 
+    if (annotation.subject && !this.setAnnotString(annotationPtr, 'Subj', annotation.subject)) {
+      return false;
+    }
+
     // Modified date (M)
     if (annotation.modified) {
       if (!this.setAnnotationDate(annotationPtr, 'M', annotation.modified)) {
@@ -8648,6 +8649,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     const contents = this.getAnnotString(annotationPtr, 'Contents') || '';
     const modified = this.getAnnotationDate(annotationPtr, 'M');
     const created = this.getAnnotationDate(annotationPtr, 'CreationDate');
+    const subject = this.getAnnotString(annotationPtr, 'Subj');
     const flags = this.getAnnotationFlags(annotationPtr);
     const custom = this.getAnnotCustom(annotationPtr);
     const inReplyToId = this.getInReplyToId(annotationPtr);
@@ -8672,6 +8674,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       flags,
       custom,
       blendMode,
+      ...(subject && { subject }),
       // Only include IRT if present
       ...(inReplyToId && { inReplyToId }),
       // Only include RT if present and not the default (Reply)

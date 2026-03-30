@@ -1,10 +1,12 @@
-import { BasePlugin, createEmitter, PluginRegistry } from '@embedpdf/core';
+import { BasePlugin, createEmitter, createScopedEmitter, PluginRegistry } from '@embedpdf/core';
 import { Task, PdfErrorReason, PdfErrorCode, PdfAnnotationObject, uuidV4 } from '@embedpdf/models';
 import { AnnotationCapability, AnnotationPlugin } from '@embedpdf/plugin-annotation';
 import { I18nCapability, I18nPlugin } from '@embedpdf/plugin-i18n';
 import {
   StampCapability,
   StampScope,
+  ActiveStampChangeEvent,
+  ActiveStampInfo,
   StampDefinition,
   StampDefinitionUpdate,
   StampLibrary,
@@ -20,7 +22,7 @@ import {
 } from './types';
 import { addStampLibrary, removeStampLibrary, StampAction } from './actions';
 import { STAMP_PLUGIN_ID } from './manifest';
-import { stampTools } from './tools';
+import { RUBBER_STAMP_TOOL_ID, stampTools } from './tools';
 import { parseAnnotationName } from './defaults/name-map';
 
 interface ManagedManifest {
@@ -40,6 +42,11 @@ export class StampPlugin extends BasePlugin<
 
   private readonly libraries = new Map<string, StampLibrary>();
   private readonly libraryChange$ = createEmitter<StampLibrary[]>();
+  private readonly activeStamp$ = createScopedEmitter<
+    ActiveStampInfo | null,
+    ActiveStampChangeEvent,
+    string
+  >((documentId, activeStamp) => ({ documentId, activeStamp }));
   private readonly managedManifests: ManagedManifest[] = [];
   private annotation: AnnotationCapability | null = null;
   private i18n: I18nCapability | null = null;
@@ -59,10 +66,13 @@ export class StampPlugin extends BasePlugin<
       for (const tool of stampTools) {
         this.annotation.addTool(tool);
       }
-      this.toolChangeUnsubscribe = this.annotation.onActiveToolChange(({ tool }) => {
-        if (tool?.id !== 'rubberStamp' && this.currentGhostUrl) {
-          URL.revokeObjectURL(this.currentGhostUrl);
-          this.currentGhostUrl = null;
+      this.toolChangeUnsubscribe = this.annotation.onActiveToolChange(({ documentId, tool }) => {
+        if (tool?.id !== RUBBER_STAMP_TOOL_ID) {
+          if (this.currentGhostUrl) {
+            URL.revokeObjectURL(this.currentGhostUrl);
+            this.currentGhostUrl = null;
+          }
+          this.activeStamp$.emit(documentId, null);
         }
       });
     }
@@ -99,6 +109,7 @@ export class StampPlugin extends BasePlugin<
       removeLibrary: (id) => this.removeLibrary(id),
       exportLibrary: (id) => this.exportLibrary(id),
       forDocument: (documentId) => this.createStampScope(documentId),
+      onActiveStampChange: this.activeStamp$.onGlobal,
       onLibraryChange: this.libraryChange$.on,
     };
   }
@@ -292,7 +303,43 @@ export class StampPlugin extends BasePlugin<
         this.createStampFromAnnotations(documentId, annotations, stamp, libraryId),
       activateStampPlacement: (libraryId, stamp) =>
         this.activateStampPlacement(documentId, libraryId, stamp),
+      activateStampPlacementById: (libraryId, stampId) =>
+        this.activateStampPlacementById(documentId, libraryId, stampId),
+      getActiveStamp: () => this.getActiveStamp(documentId),
+      onActiveStampChange: this.activeStamp$.forScope(documentId),
     };
+  }
+
+  private activateStampPlacementById(
+    documentId: string,
+    libraryId: string,
+    stampId: string,
+  ): Task<void, PdfErrorReason> {
+    const task = new Task<void, PdfErrorReason>();
+
+    const library = this.libraries.get(libraryId);
+    if (!library) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp library not found: ${libraryId}`,
+      });
+      return task;
+    }
+
+    const stamp = library.stamps.find((s) => s.id === stampId);
+    if (!stamp) {
+      task.reject({
+        code: PdfErrorCode.NotFound,
+        message: `Stamp ${stampId} not found in library: ${libraryId}`,
+      });
+      return task;
+    }
+
+    return this.activateStampPlacement(documentId, libraryId, stamp);
+  }
+
+  private getActiveStamp(documentId: string): ActiveStampInfo | null {
+    return this.activeStamp$.getValue(documentId) ?? null;
   }
 
   private activateStampPlacement(
@@ -331,13 +378,14 @@ export class StampPlugin extends BasePlugin<
             }
             const ghostUrl = URL.createObjectURL(blob);
             this.currentGhostUrl = ghostUrl;
-            this.annotation?.setActiveTool('rubberStamp', {
+            this.annotation?.setActiveTool(RUBBER_STAMP_TOOL_ID, {
               appearance,
               ghostUrl,
               stampSize,
               libraryId,
               stamp,
             });
+            this.activeStamp$.emit(documentId, { libraryId, stamp });
             task.resolve();
           },
           (error) => {
@@ -566,7 +614,7 @@ export class StampPlugin extends BasePlugin<
 
   private loadLibraryInternal(config: StampLibraryConfig): Task<string, PdfErrorReason> {
     const task = new Task<string, PdfErrorReason>();
-    const libraryId = this.generateLibraryId();
+    const libraryId = config.id ?? this.generateLibraryId();
     const documentId = `stamp-doc-${libraryId}`;
 
     const engineTask =
@@ -857,7 +905,7 @@ export class StampPlugin extends BasePlugin<
         const pdfUrl = this.resolveManifestPdfUrl(url, manifest.pdf);
 
         const stamps: StampDefinition[] = manifest.stamps.map((entry) => ({
-          id: uuidV4(),
+          id: entry.id ?? uuidV4(),
           pageIndex: entry.pageIndex,
           name: parseAnnotationName(entry.name),
           subject: entry.subject,
@@ -867,6 +915,7 @@ export class StampPlugin extends BasePlugin<
         }));
 
         const config: StampLibraryConfig = {
+          id: manifest.id,
           name: manifest.name,
           nameKey: manifest.nameKey,
           pdf: pdfUrl,
@@ -924,6 +973,7 @@ export class StampPlugin extends BasePlugin<
       this.localeUnsubscribe();
       this.localeUnsubscribe = null;
     }
+    this.activeStamp$.clear();
     const libs = Array.from(this.libraries.values());
     for (const library of libs) {
       try {

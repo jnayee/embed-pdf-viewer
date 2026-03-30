@@ -1053,6 +1053,11 @@ export interface PdfAnnotationObjectBase {
    * Reply type (how this annotation relates to the parent via IRT)
    */
   replyType?: PdfAnnotationReplyType;
+
+  /**
+   * Subject of the annotation
+   */
+  subject?: string;
 }
 
 /**
@@ -2031,11 +2036,6 @@ export interface PdfStampAnnoObject extends PdfAnnotationObjectBase {
 
   /** @deprecated Use name instead */
   icon?: PdfAnnotationIcon;
-
-  /**
-   * Subject of the stamp annotation
-   */
-  subject?: string;
 }
 
 /**

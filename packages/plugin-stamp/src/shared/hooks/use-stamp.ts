@@ -1,15 +1,6 @@
 import { useCapability, usePlugin } from '@embedpdf/core/@framework';
-import {
-  StampPlugin,
-  StampLibrary,
-  ResolvedStamp,
-  StampDefinition,
-  RubberStampToolContext,
-} from '@embedpdf/plugin-stamp';
-import { AnnotationPlugin, AnnotationDocumentState } from '@embedpdf/plugin-annotation';
+import { StampPlugin, StampLibrary, ResolvedStamp, ActiveStampInfo } from '@embedpdf/plugin-stamp';
 import { useState, useEffect } from '@framework';
-
-const useAnnotationCapability = () => useCapability<AnnotationPlugin>(AnnotationPlugin.id);
 
 export const useStampPlugin = () => usePlugin<StampPlugin>(StampPlugin.id);
 export const useStampCapability = () => useCapability<StampPlugin>(StampPlugin.id);
@@ -79,30 +70,15 @@ export const useStampsByLibrary = (libraryId?: string, category?: string) => {
 };
 
 export const useActiveStamp = (documentId: string) => {
-  const { provides: annotation } = useAnnotationCapability();
-  const [activeStamp, setActiveStamp] = useState<{
-    libraryId: string;
-    stamp: StampDefinition;
-  } | null>(null);
+  const { provides: stamp } = useStampCapability();
+  const [activeStamp, setActiveStamp] = useState<ActiveStampInfo | null>(null);
 
   useEffect(() => {
-    if (!annotation) return;
-    const scope = annotation.forDocument(documentId);
-
-    const derive = (state: AnnotationDocumentState) => {
-      if (state.activeToolId === 'rubberStamp' && state.activeToolContext) {
-        const ctx = state.activeToolContext as unknown as RubberStampToolContext;
-        if (ctx.libraryId && ctx.stamp) {
-          setActiveStamp({ libraryId: ctx.libraryId, stamp: ctx.stamp });
-          return;
-        }
-      }
-      setActiveStamp(null);
-    };
-
-    derive(scope.getState());
-    return scope.onStateChange(derive);
-  }, [annotation, documentId]);
+    if (!stamp) return;
+    const scope = stamp.forDocument(documentId);
+    setActiveStamp(scope.getActiveStamp());
+    return scope.onActiveStampChange(setActiveStamp);
+  }, [stamp, documentId]);
 
   return activeStamp;
 };

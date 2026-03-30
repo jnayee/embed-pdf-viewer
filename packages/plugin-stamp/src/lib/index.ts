@@ -22,3 +22,4 @@ export * from './types';
 export * from './manifest';
 export * from './actions';
 export * from './reducer';
+export { RUBBER_STAMP_TOOL_ID } from './tools';

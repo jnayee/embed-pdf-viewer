@@ -28,6 +28,7 @@ const ANNOTATION_NAME_MAP: Record<string, PdfAnnotationName> = {
   Image: PdfAnnotationName.Image,
 };
 
-export function parseAnnotationName(name: string): PdfAnnotationName {
+export function parseAnnotationName(name?: string): PdfAnnotationName {
+  if (!name) return PdfAnnotationName.Custom;
   return ANNOTATION_NAME_MAP[name] ?? PdfAnnotationName.Custom;
 }

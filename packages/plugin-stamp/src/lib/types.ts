@@ -37,6 +37,7 @@ export type StampDefinitionUpdate = Partial<
 >;
 
 export interface StampLibraryConfig {
+  id?: string;
   name: string;
   nameKey?: string;
   pdf: string | ArrayBuffer;
@@ -77,6 +78,7 @@ export interface StampManifestSource {
 }
 
 export interface StampManifest {
+  id?: string;
   name: string;
   nameKey?: string;
   pdf: string;
@@ -85,8 +87,9 @@ export interface StampManifest {
 }
 
 export interface StampManifestEntry {
+  id?: string;
   pageIndex: number;
-  name: string;
+  name?: string;
   subject: string;
   subjectKey?: string;
   label?: string;
@@ -110,6 +113,16 @@ export interface StampState {
   libraryIds: string[];
 }
 
+export interface ActiveStampInfo {
+  libraryId: string;
+  stamp: StampDefinition;
+}
+
+export interface ActiveStampChangeEvent {
+  documentId: string;
+  activeStamp: ActiveStampInfo | null;
+}
+
 export interface StampScope {
   createStampFromAnnotation(
     annotation: PdfAnnotationObject,
@@ -124,6 +137,9 @@ export interface StampScope {
   ): PdfTask<void>;
 
   activateStampPlacement(libraryId: string, stamp: StampDefinition): PdfTask<void>;
+  activateStampPlacementById(libraryId: string, stampId: string): PdfTask<void>;
+  getActiveStamp(): ActiveStampInfo | null;
+  onActiveStampChange: EventHook<ActiveStampInfo | null>;
 }
 
 export interface StampCapability {
@@ -147,5 +163,6 @@ export interface StampCapability {
   removeLibrary(id: string): PdfTask<void>;
   exportLibrary(id: string): PdfTask<ExportedStampLibrary>;
   forDocument(documentId: string): StampScope;
+  onActiveStampChange: EventHook<ActiveStampChangeEvent>;
   onLibraryChange: EventHook<StampLibrary[]>;
 }

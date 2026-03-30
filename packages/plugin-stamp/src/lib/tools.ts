@@ -2,8 +2,10 @@ import { PdfAnnotationSubtype } from '@embedpdf/models';
 import { defineAnnotationTool } from '@embedpdf/plugin-annotation';
 import { rubberStampHandlerFactory } from './handlers/rubber-stamp.handler';
 
+export const RUBBER_STAMP_TOOL_ID = 'rubberStamp' as const;
+
 export const rubberStampTool = defineAnnotationTool({
-  id: 'rubberStamp' as const,
+  id: RUBBER_STAMP_TOOL_ID,
   name: 'Rubber Stamp',
   labelKey: 'stamp.rubberStamp',
   categories: ['annotation', 'stamp', 'insert'],
