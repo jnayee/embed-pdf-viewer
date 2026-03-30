@@ -29,7 +29,7 @@ export interface CirclePreviewData {
   strokeDashArray: number[];
 }
 
-interface SquarePreviewData extends CirclePreviewData {}
+export interface SquarePreviewData extends CirclePreviewData {}
 
 export interface PolygonPreviewData {
   rect: Rect;
@@ -95,12 +95,6 @@ export interface LinkPreviewData {
   strokeDashArray: number[];
 }
 
-export interface StampPreviewData {
-  rect: Rect;
-  ghostUrl: string;
-  pageRotation: Rotation;
-}
-
 /**
  * Map types to their preview data
  */
@@ -113,7 +107,6 @@ export interface PreviewDataMap {
   [PdfAnnotationSubtype.INK]: InkPreviewData;
   [PdfAnnotationSubtype.FREETEXT]: FreeTextPreviewData;
   [PdfAnnotationSubtype.LINK]: LinkPreviewData;
-  [PdfAnnotationSubtype.STAMP]: StampPreviewData;
 }
 
 /**

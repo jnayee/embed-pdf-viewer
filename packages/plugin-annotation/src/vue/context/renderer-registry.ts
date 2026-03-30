@@ -82,8 +82,12 @@ export function createRenderer<T extends PdfAnnotationObject, P = never>(
 ): BoxedAnnotationRenderer {
   return {
     id: entry.id,
-    matches: entry.matches,
-    component: markRaw(entry.component) as Component<AnnotationRendererProps>,
+    matches: entry.matches ?? (() => false),
+    component: (entry.component
+      ? markRaw(entry.component)
+      : () => null) as Component<AnnotationRendererProps>,
+    matchesPreview: entry.matchesPreview,
+    previewContainerStyle: entry.previewContainerStyle,
     vertexConfig: entry.vertexConfig as VertexConfig<PdfAnnotationObject> | undefined,
     zIndex: entry.zIndex,
     defaultBlendMode: entry.defaultBlendMode,

@@ -4,8 +4,15 @@ import {
   PdfAnnotationObject,
   PdfDocumentObject,
   PdfTask,
+  Rect,
   Rotation,
 } from '@embedpdf/models';
+
+export interface StampPreviewData {
+  rect: Rect;
+  ghostUrl: string;
+  pageRotation: Rotation;
+}
 
 export interface RubberStampToolContext {
   appearance: ArrayBuffer;
