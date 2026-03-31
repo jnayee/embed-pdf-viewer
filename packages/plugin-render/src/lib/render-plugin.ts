@@ -73,7 +73,7 @@ export class RenderPlugin extends BasePlugin<RenderPluginConfig, RenderCapabilit
       ...(options ?? {}),
       withForms: options?.withForms ?? this.config.withForms ?? false,
       withAnnotations: options?.withAnnotations ?? this.config.withAnnotations ?? false,
-      imageType: options?.imageType ?? this.config.defaultImageType ?? 'image/bmp',
+      imageType: options?.imageType ?? this.config.defaultImageType ?? 'image/png',
       imageQuality: options?.imageQuality ?? this.config.defaultImageQuality ?? 0.92,
     };
 
@@ -97,7 +97,7 @@ export class RenderPlugin extends BasePlugin<RenderPluginConfig, RenderCapabilit
       ...(options ?? {}),
       withForms: options?.withForms ?? this.config.withForms ?? false,
       withAnnotations: options?.withAnnotations ?? this.config.withAnnotations ?? false,
-      imageType: options?.imageType ?? this.config.defaultImageType ?? 'image/bmp',
+      imageType: options?.imageType ?? this.config.defaultImageType ?? 'image/png',
       imageQuality: options?.imageQuality ?? this.config.defaultImageQuality ?? 0.92,
     };
 

@@ -26,7 +26,7 @@ export class ImageConverterError extends Error {
  */
 export const browserImageDataToBlobConverter: ImageDataConverter<Blob> = (
   getImageData: LazyImageData,
-  imageType: ImageConversionTypes = 'image/bmp',
+  imageType: ImageConversionTypes = 'image/png',
   quality?: number,
 ): Promise<Blob> => {
   const pdfImage = getImageData();
@@ -80,7 +80,7 @@ export function createWorkerPoolImageConverter(
 ): ImageDataConverter<Blob> {
   const converter: ImageDataConverter<Blob> = (
     getImageData: LazyImageData,
-    imageType: ImageConversionTypes = 'image/bmp',
+    imageType: ImageConversionTypes = 'image/png',
     quality?: number,
   ): Promise<Blob> => {
     const pdfImage = getImageData();
@@ -125,7 +125,7 @@ export function createHybridImageConverter(
 ): ImageDataConverter<Blob> {
   const converter: ImageDataConverter<Blob> = async (
     getImageData: LazyImageData,
-    imageType: ImageConversionTypes = 'image/bmp',
+    imageType: ImageConversionTypes = 'image/png',
     quality?: number,
   ): Promise<Blob> => {
     const pdfImage = getImageData();

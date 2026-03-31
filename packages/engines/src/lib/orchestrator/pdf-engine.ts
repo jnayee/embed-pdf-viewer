@@ -481,7 +481,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     options: any,
     resultTask: Task<T, PdfErrorReason>,
   ): void {
-    const imageType = options?.imageType ?? 'image/bmp';
+    const imageType = options?.imageType ?? 'image/png';
     const quality = options?.quality;
 
     // Convert to plain object for encoding
@@ -505,7 +505,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     options: PdfRenderPageAnnotationOptions | undefined,
     resultTask: Task<AnnotationAppearanceMap<T>, PdfErrorReason>,
   ): void {
-    const imageType = options?.imageType ?? 'image/bmp';
+    const imageType = options?.imageType ?? 'image/png';
     const quality = options?.imageQuality;
 
     const convertImage = (rawImageData: ImageDataLike): Promise<T> => {
