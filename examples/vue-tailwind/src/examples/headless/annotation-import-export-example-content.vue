@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, shallowRef, onMounted, onUnmounted, computed } from 'vue';
 import { Viewport } from '@embedpdf/plugin-viewport/vue';
 import { Scroller } from '@embedpdf/plugin-scroll/vue';
 import { RenderLayer } from '@embedpdf/plugin-render/vue';
@@ -24,7 +24,7 @@ const props = defineProps<{
 }>();
 
 const activeTool = ref<string | null>(null);
-const exported = ref<AnnotationTransferItem[] | null>(null);
+const exported = shallowRef<AnnotationTransferItem[] | null>(null);
 const status = ref<string | null>(null);
 const annotationCount = ref(0);
 

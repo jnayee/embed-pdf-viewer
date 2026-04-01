@@ -299,6 +299,8 @@ export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationTo
   /** Get the IDs of all selected annotations */
   getSelectedAnnotationIds(): string[];
   getAnnotationById(id: string): TrackedAnnotation | null;
+  /** Get all tracked annotations, optionally filtered by page */
+  getAnnotations(options?: GetAnnotationsOptions): TrackedAnnotation[];
   /** Select a single annotation (clears previous selection) */
   selectAnnotation(pageIndex: number, annotationId: string): void;
   /** Toggle an annotation in/out of the current selection */
@@ -417,6 +419,8 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
   /** Get the IDs of all selected annotations */
   getSelectedAnnotationIds: () => string[];
   getAnnotationById(id: string): TrackedAnnotation | null;
+  /** Get all tracked annotations, optionally filtered by page */
+  getAnnotations: (options?: GetAnnotationsOptions) => TrackedAnnotation[];
   /** Select a single annotation (clears previous selection) */
   selectAnnotation: (pageIndex: number, annotationId: string) => void;
   /** Toggle an annotation in/out of the current selection */
@@ -569,6 +573,11 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
 
 export interface GetPageAnnotationsOptions {
   pageIndex: number;
+}
+
+export interface GetAnnotationsOptions {
+  /** Filter annotations by page index. Omit to get all annotations. */
+  pageIndex?: number;
 }
 
 export interface SidebarAnnotationEntry {

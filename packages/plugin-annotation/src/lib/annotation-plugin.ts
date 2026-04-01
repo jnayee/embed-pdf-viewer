@@ -96,6 +96,7 @@ import { HistoryPlugin, HistoryCapability, Command } from '@embedpdf/plugin-hist
 import { ScrollPlugin, ScrollCapability } from '@embedpdf/plugin-scroll';
 import {
   getAnnotationByUid,
+  getAnnotationsByPageIndex,
   getSelectedAnnotation,
   getSelectedAnnotations,
   getSelectedAnnotationIds,
@@ -412,6 +413,7 @@ export class AnnotationPlugin extends BasePlugin<
       getSelectedAnnotations: () => this.getSelectedAnnotationsMethod(),
       getSelectedAnnotationIds: () => this.getSelectedAnnotationIdsMethod(),
       getAnnotationById: (id) => this.getAnnotationById(id),
+      getAnnotations: (options) => this.getAnnotationsMethod(options),
       selectAnnotation: (pageIndex, id) => this.selectAnnotation(pageIndex, id),
       toggleSelection: (pageIndex, id) => this.toggleSelectionMethod(pageIndex, id),
       addToSelection: (pageIndex, id) => this.addToSelectionMethod(pageIndex, id),
@@ -504,6 +506,7 @@ export class AnnotationPlugin extends BasePlugin<
       getSelectedAnnotations: () => this.getSelectedAnnotationsMethod(documentId),
       getSelectedAnnotationIds: () => this.getSelectedAnnotationIdsMethod(documentId),
       getAnnotationById: (id) => this.getAnnotationById(id, documentId),
+      getAnnotations: (options) => this.getAnnotationsMethod(options, documentId),
       selectAnnotation: (pageIndex, id) => this.selectAnnotation(pageIndex, id, documentId),
       toggleSelection: (pageIndex, id) => this.toggleSelectionMethod(pageIndex, id, documentId),
       addToSelection: (pageIndex, id) => this.addToSelectionMethod(pageIndex, id, documentId),
@@ -735,6 +738,19 @@ export class AnnotationPlugin extends BasePlugin<
   private getAnnotationById(id: string, documentId?: string): TrackedAnnotation | null {
     const docState = this.getDocumentState(documentId);
     return getAnnotationByUid(docState, id);
+  }
+
+  private getAnnotationsMethod(
+    options?: { pageIndex?: number },
+    documentId?: string,
+  ): TrackedAnnotation[] {
+    const docState = this.getDocumentState(documentId);
+    if (options?.pageIndex !== undefined) {
+      return getAnnotationsByPageIndex(docState, options.pageIndex).filter(
+        (ta): ta is TrackedAnnotation => ta !== undefined,
+      );
+    }
+    return Object.values(docState.byUid);
   }
 
   private renderAnnotation(
