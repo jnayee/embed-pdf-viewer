@@ -26,7 +26,8 @@
   let { documentId }: Props = $props();
 
   let activeTool = $state<string | null>(null);
-  let exported = $state<AnnotationTransferItem[] | null>(null);
+  let exported: AnnotationTransferItem[] | null = null;
+  let hasExported = $state(false);
   let status = $state<string | null>(null);
   let annotationCount = $state(0);
 
@@ -71,6 +72,7 @@
     annotationApi.exportAnnotations().wait(
       (result) => {
         exported = result;
+        hasExported = true;
         status = `Exported ${result.length} annotation${result.length !== 1 ? 's' : ''}`;
       },
       () => {
@@ -151,11 +153,11 @@
         <button
           type="button"
           onclick={handleImport}
-          disabled={!exported}
+          disabled={!hasExported}
           class="inline-flex items-center gap-1.5 rounded-md bg-blue-500 px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Upload size={14} />
-          Import{exported ? ` (${exported.length})` : ''}
+          Import{hasExported && exported ? ` (${exported.length})` : ''}
         </button>
       </div>
 

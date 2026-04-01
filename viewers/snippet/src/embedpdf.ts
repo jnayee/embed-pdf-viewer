@@ -71,6 +71,11 @@ export {
   type AnnotationCapability,
   type AnnotationScope,
   type AnnotationEvent,
+  type AnnotationTool,
+  type AnnotationTransferItem,
+  type ExportAnnotationsOptions,
+  type GetAnnotationsOptions,
+  type TrackedAnnotation,
 } from '@embedpdf/plugin-annotation/preact';
 export {
   SearchPlugin,
@@ -249,7 +254,7 @@ export {
 } from '@embedpdf/plugin-interaction-manager/preact';
 
 // Re-export from models
-export { Rotation, ignore } from '@embedpdf/models';
+export { Rotation, ignore, PdfAnnotationSubtype, type PdfStampAnnoObject } from '@embedpdf/models';
 
 // Re-export PluginRegistry for typing
 export type { PluginRegistry } from '@embedpdf/core';
