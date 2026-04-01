@@ -1,5 +1,7 @@
 # @embedpdf/models
 
+## 2.12.0
+
 ## 2.11.1
 
 ### Patch Changes

@@ -1,5 +1,7 @@
 # @embedpdf/plugin-scroll
 
+## 2.12.0
+
 ## 2.11.1
 
 ## 2.11.0
