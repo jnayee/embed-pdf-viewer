@@ -9,7 +9,7 @@ export const manifest: PluginManifest<SignaturePluginConfig> = {
   version: '1.0.0',
   provides: ['signature'],
   requires: ['annotation'],
-  optional: ['i18n'],
+  optional: [],
   defaultConfig: {
     mode: SignatureMode.SignatureOnly,
   },

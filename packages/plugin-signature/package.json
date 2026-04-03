@@ -51,14 +51,12 @@
     "@embedpdf/build": "workspace:*",
     "@embedpdf/core": "workspace:*",
     "@embedpdf/plugin-annotation": "workspace:*",
-    "@embedpdf/plugin-i18n": "workspace:*",
     "@types/react": "^18.2.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "@embedpdf/core": "workspace:*",
     "@embedpdf/plugin-annotation": "workspace:*",
-    "@embedpdf/plugin-i18n": "workspace:*",
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0",
     "preact": "^10.26.4",

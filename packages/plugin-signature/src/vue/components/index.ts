@@ -1,1 +1,2 @@
-// Vue signature components can be added here in the future.
+export { default as SignatureDrawPad } from './SignatureDrawPad.vue';
+export { default as SignatureTypePad } from './SignatureTypePad.vue';

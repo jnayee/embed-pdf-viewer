@@ -430,6 +430,9 @@ importers:
       '@embedpdf/plugin-selection':
         specifier: workspace:*
         version: link:../../packages/plugin-selection
+      '@embedpdf/plugin-signature':
+        specifier: workspace:*
+        version: link:../../packages/plugin-signature
       '@embedpdf/plugin-spread':
         specifier: workspace:*
         version: link:../../packages/plugin-spread
@@ -579,6 +582,9 @@ importers:
       '@embedpdf/plugin-selection':
         specifier: workspace:*
         version: link:../../packages/plugin-selection
+      '@embedpdf/plugin-signature':
+        specifier: workspace:*
+        version: link:../../packages/plugin-signature
       '@embedpdf/plugin-spread':
         specifier: workspace:*
         version: link:../../packages/plugin-spread
@@ -1960,9 +1966,6 @@ importers:
       '@embedpdf/plugin-annotation':
         specifier: workspace:*
         version: link:../plugin-annotation
-      '@embedpdf/plugin-i18n':
-        specifier: workspace:*
-        version: link:../plugin-i18n
       '@types/react':
         specifier: ^18.2.0
         version: 18.3.28

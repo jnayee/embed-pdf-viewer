@@ -1,1 +1,2 @@
-// Svelte signature components can be added here in the future.
+export { default as SignatureDrawPad } from './SignatureDrawPad.svelte';
+export { default as SignatureTypePad } from './SignatureTypePad.svelte';
