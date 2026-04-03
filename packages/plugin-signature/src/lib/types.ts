@@ -142,35 +142,3 @@ export interface SignatureBinaryData {
   signatureImageData?: ArrayBuffer;
   initialsImageData?: ArrayBuffer;
 }
-
-// ---------------------------------------------------------------------------
-// Component prop types
-// ---------------------------------------------------------------------------
-
-export interface SignatureDrawPadProps {
-  onResult: (result: SignatureFieldDefinition | null) => void;
-  strokeColor?: string;
-  strokeWidth?: number;
-  width?: number;
-  height?: number;
-  className?: string;
-}
-
-export interface SignatureTypePadProps {
-  onResult: (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
-  fonts?: Array<{ name: string; family: string }>;
-  defaultFont?: string;
-  fontSize?: number;
-  color?: string;
-  width?: number;
-  height?: number;
-  className?: string;
-}
-
-export interface SignatureUploadPadProps {
-  onResult: (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
-  accept?: string;
-  width?: number;
-  height?: number;
-  className?: string;
-}

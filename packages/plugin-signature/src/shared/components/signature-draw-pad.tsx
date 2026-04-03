@@ -1,21 +1,32 @@
-import { useEffect, useRef, useState, useCallback, Fragment } from '@framework';
-import {
-  SignatureDrawPadProps,
-  SignatureFieldDefinition,
-  SignatureCreationType,
-} from '@embedpdf/plugin-signature';
+import { useEffect, useRef, useState, useCallback } from '@framework';
+import { SignatureFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
+import { cropCanvas } from './crop-canvas';
+
+export interface SignatureDrawPadHandle {
+  clear(): void;
+}
+
+export interface SignatureDrawPadProps {
+  onResult: (result: SignatureFieldDefinition | null) => void;
+  padRef?: (handle: SignatureDrawPadHandle | null) => void;
+  strokeColor?: string;
+  strokeWidth?: number;
+  className?: string;
+}
 
 export function SignatureDrawPad({
   onResult,
+  padRef,
   strokeColor = '#000000',
-  strokeWidth = 2,
-  width = 400,
-  height = 200,
+  strokeWidth = 4,
   className,
 }: SignatureDrawPadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strokes, setStrokes] = useState<Array<{ points: Array<{ x: number; y: number }> }>>([]);
   const isDrawingRef = useRef(false);
+  const sizeRef = useRef({ width: 0, height: 0 });
+  const strokesRef = useRef(strokes);
+  strokesRef.current = strokes;
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
 
   const getCanvasPos = useCallback(
@@ -60,6 +71,9 @@ export function SignatureDrawPad({
     [dpr, strokeColor, strokeWidth],
   );
 
+  const redrawRef = useRef(redraw);
+  redrawRef.current = redraw;
+
   const emitResult = useCallback(
     (currentStrokes: Array<{ points: Array<{ x: number; y: number }> }>) => {
       if (currentStrokes.length === 0 || currentStrokes.every((s) => s.points.length < 2)) {
@@ -70,32 +84,73 @@ export function SignatureDrawPad({
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      const cropped = cropCanvas(canvas, Math.ceil(strokeWidth * dpr));
+      if (!cropped) {
+        onResult(null);
+        return;
+      }
+
+      const offsetX = cropped.bounds.x / dpr;
+      const offsetY = cropped.bounds.y / dpr;
+      const croppedWidth = Math.round(cropped.bounds.width / dpr);
+      const croppedHeight = Math.round(cropped.bounds.height / dpr);
+
       const result: SignatureFieldDefinition = {
         creationType: SignatureCreationType.Draw,
         inkData: {
-          inkList: currentStrokes.filter((s) => s.points.length >= 2),
+          inkList: currentStrokes
+            .filter((s) => s.points.length >= 2)
+            .map((s) => ({
+              points: s.points.map((p) => ({
+                x: p.x - offsetX,
+                y: p.y - offsetY,
+              })),
+            })),
           strokeWidth,
           strokeColor,
-          size: { width, height },
+          size: { width: croppedWidth, height: croppedHeight },
         },
-        previewDataUrl: canvas.toDataURL('image/png'),
+        previewDataUrl: cropped.canvas.toDataURL('image/png'),
       };
 
       onResult(result);
     },
-    [onResult, strokeWidth, strokeColor, width, height],
+    [onResult, strokeWidth, strokeColor, dpr],
   );
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const observer = new ResizeObserver((entries) => {
+      const { width: w, height: h } = entries[0].contentRect;
+      if (w > 0 && h > 0) {
+        sizeRef.current = { width: Math.round(w), height: Math.round(h) };
+        canvas.width = Math.round(w) * dpr;
+        canvas.height = Math.round(h) * dpr;
+        redrawRef.current(strokesRef.current);
+      }
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [dpr]);
 
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+  useEffect(() => {
     redraw(strokes);
-  }, [width, height, dpr]);
+    if (strokes.length > 0 && strokes.some((s) => s.points.length >= 2)) {
+      emitResult(strokes);
+    }
+  }, [strokeColor, strokeWidth]);
+
+  const handleClear = useCallback(() => {
+    setStrokes([]);
+    redraw([]);
+    onResult(null);
+  }, [redraw, onResult]);
+
+  useEffect(() => {
+    padRef?.({ clear: handleClear });
+    return () => padRef?.(null);
+  }, [padRef, handleClear]);
 
   const handlePointerDown = useCallback(
     (e: PointerEvent) => {
@@ -133,36 +188,14 @@ export function SignatureDrawPad({
     [strokes, emitResult],
   );
 
-  const handleClear = useCallback(() => {
-    setStrokes([]);
-    redraw([]);
-    onResult(null);
-  }, [redraw, onResult]);
-
   return (
-    <Fragment>
-      <canvas
-        ref={canvasRef}
-        className={className}
-        style={{
-          touchAction: 'none',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          cursor: 'crosshair',
-          width: `${width}px`,
-          height: `${height}px`,
-        }}
-        onPointerDown={handlePointerDown as any}
-        onPointerMove={handlePointerMove as any}
-        onPointerUp={handlePointerUp as any}
-      />
-      <button
-        type="button"
-        onClick={handleClear}
-        style={{ marginTop: '8px', fontSize: '12px', cursor: 'pointer' }}
-      >
-        Clear
-      </button>
-    </Fragment>
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{ touchAction: 'none', width: '100%', height: '100%', display: 'block' }}
+      onPointerDown={handlePointerDown as any}
+      onPointerMove={handlePointerMove as any}
+      onPointerUp={handlePointerUp as any}
+    />
   );
 }

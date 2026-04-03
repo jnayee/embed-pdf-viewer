@@ -1,17 +1,29 @@
-import { useRef, useState, useCallback, Fragment } from '@framework';
-import {
-  SignatureUploadPadProps,
-  SignatureFieldDefinition,
-  SignatureCreationType,
-} from '@embedpdf/plugin-signature';
+import { useRef, useState, useCallback } from '@framework';
+import { SignatureFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
 
-export function SignatureUploadPad({
-  onResult,
+export interface UseSignatureUploadOptions {
+  accept?: string;
+  onResult: (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
+}
+
+export interface UseSignatureUploadReturn {
+  inputRef: { current: HTMLInputElement | null };
+  openFilePicker: () => void;
+  processFile: (file: File) => void;
+  handleFileInputChange: (e: Event) => void;
+  handleDrop: (e: DragEvent) => void;
+  handleDragOver: (e: DragEvent) => void;
+  handleDragLeave: () => void;
+  previewUrl: string | null;
+  isDragging: boolean;
+  clear: () => void;
+  accept: string;
+}
+
+export function useSignatureUpload({
   accept = 'image/png,image/jpeg,image/svg+xml',
-  width = 400,
-  height = 200,
-  className,
-}: SignatureUploadPadProps) {
+  onResult,
+}: UseSignatureUploadOptions): UseSignatureUploadReturn {
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -24,8 +36,10 @@ export function SignatureUploadPad({
         const blob = new Blob([arrayBuffer], { type: file.type });
         const dataUrl = URL.createObjectURL(blob);
 
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(dataUrl);
+        setPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return dataUrl;
+        });
 
         const img = new Image();
         img.onload = () => {
@@ -50,10 +64,10 @@ export function SignatureUploadPad({
       };
       reader.readAsArrayBuffer(file);
     },
-    [onResult, previewUrl],
+    [onResult],
   );
 
-  const handleFileChange = useCallback(
+  const handleFileInputChange = useCallback(
     (e: Event) => {
       const files = (e.target as HTMLInputElement).files;
       if (files && files[0]) {
@@ -84,49 +98,32 @@ export function SignatureUploadPad({
     setIsDragging(false);
   }, []);
 
-  const handleClick = useCallback(() => {
+  const openFilePicker = useCallback(() => {
     inputRef.current?.click();
   }, []);
 
-  return (
-    <Fragment>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        onChange={handleFileChange as any}
-        style={{ display: 'none' }}
-      />
-      <div
-        className={className}
-        onClick={handleClick}
-        onDrop={handleDrop as any}
-        onDragOver={handleDragOver as any}
-        onDragLeave={handleDragLeave}
-        style={{
-          width: `${width}px`,
-          height: `${height}px`,
-          border: `2px dashed ${isDragging ? '#2563eb' : '#ccc'}`,
-          borderRadius: '4px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          backgroundColor: isDragging ? '#eff6ff' : 'transparent',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {previewUrl ? (
-          <img
-            src={previewUrl}
-            style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }}
-          />
-        ) : (
-          <span style={{ color: '#999', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
-            Click or drag an image here
-          </span>
-        )}
-      </div>
-    </Fragment>
-  );
+  const clear = useCallback(() => {
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    onResult(null);
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  }, [onResult]);
+
+  return {
+    inputRef,
+    openFilePicker,
+    processFile,
+    handleFileInputChange,
+    handleDrop,
+    handleDragOver,
+    handleDragLeave,
+    previewUrl,
+    isDragging,
+    clear,
+    accept,
+  };
 }

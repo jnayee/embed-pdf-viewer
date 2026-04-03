@@ -75,57 +75,62 @@ export function SignatureSidebar({ documentId }: SignatureSidebarProps) {
       </div>
 
       {entries.length > 0 ? (
-        <div class="flex-1 overflow-y-auto p-3">
-          <div class="flex flex-col gap-3">
+        <div class="flex-1 overflow-y-auto p-4">
+          <div class="flex flex-col gap-4">
             {entries.map((entry: SignatureEntry) => (
               <div
                 key={entry.id}
-                class="border-border-subtle bg-bg-surface group relative rounded-md border p-3"
+                class="border-border-subtle bg-bg-surface group relative flex flex-col gap-3 rounded-lg border p-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 <button
-                  class="bg-bg-surface border-border-default text-fg-muted hover:text-fg-primary absolute right-1 top-1 flex rounded-full border p-0.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+                  class="border-border-default bg-bg-surface text-fg-muted hover:text-fg-primary absolute right-2 top-2 flex rounded-full border p-1 opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
                   onClick={(e: Event) => handleRemove(e, entry.id)}
+                  title={translate('signature.remove', { fallback: 'Remove signature' })}
                 >
-                  <Icon icon="x" className="h-3 w-3" />
+                  <Icon icon="x" className="h-3.5 w-3.5" />
                 </button>
 
                 {/* Signature field */}
-                <div
-                  class={`flex cursor-pointer items-center gap-2 rounded p-2 transition-colors ${
-                    isActive(entry.id, SignatureFieldKind.Signature)
-                      ? 'bg-accent-light ring-accent ring-2'
-                      : 'hover:bg-interactive-hover'
-                  }`}
-                  onClick={() => handlePlaceSignature(entry.id)}
-                >
-                  <img
-                    src={entry.signature.previewDataUrl}
-                    class="h-10 max-w-full object-contain"
-                    alt="Signature"
-                  />
-                  <span class="text-fg-muted text-xs">
+                <div class="flex flex-col gap-1.5">
+                  <span class="text-fg-muted text-xs font-medium uppercase tracking-wider">
                     {translate('signature.placeSignature', { fallback: 'Signature' })}
                   </span>
+                  <div
+                    class={`flex h-20 cursor-pointer items-center justify-center rounded-md border border-dashed transition-all ${
+                      isActive(entry.id, SignatureFieldKind.Signature)
+                        ? 'border-accent bg-accent/5 ring-accent ring-2 ring-offset-1'
+                        : 'border-border-default hover:border-fg-muted hover:bg-interactive-hover'
+                    }`}
+                    onClick={() => handlePlaceSignature(entry.id)}
+                  >
+                    <img
+                      src={entry.signature.previewDataUrl}
+                      class="h-14 max-w-[90%] object-contain"
+                      alt="Signature"
+                    />
+                  </div>
                 </div>
 
                 {/* Initials field */}
                 {showInitials && entry.initials && (
-                  <div
-                    class={`mt-2 flex cursor-pointer items-center gap-2 rounded p-2 transition-colors ${
-                      isActive(entry.id, SignatureFieldKind.Initials)
-                        ? 'bg-accent-light ring-accent ring-2'
-                        : 'hover:bg-interactive-hover'
-                    }`}
-                    onClick={() => handlePlaceInitials(entry.id)}
-                  >
-                    <img
-                      src={entry.initials.previewDataUrl}
-                      class="h-8 max-w-full object-contain"
-                      alt="Initials"
-                    />
-                    <span class="text-fg-muted text-xs">
+                  <div class="border-border-subtle flex flex-col gap-1.5 border-t pt-3">
+                    <span class="text-fg-muted text-xs font-medium uppercase tracking-wider">
                       {translate('signature.placeInitials', { fallback: 'Initials' })}
                     </span>
+                    <div
+                      class={`flex h-16 cursor-pointer items-center justify-center rounded-md border border-dashed transition-all ${
+                        isActive(entry.id, SignatureFieldKind.Initials)
+                          ? 'border-accent bg-accent/5 ring-accent ring-2 ring-offset-1'
+                          : 'border-border-default hover:border-fg-muted hover:bg-interactive-hover'
+                      }`}
+                      onClick={() => handlePlaceInitials(entry.id)}
+                    >
+                      <img
+                        src={entry.initials.previewDataUrl}
+                        class="h-10 max-w-[80%] object-contain"
+                        alt="Initials"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -133,14 +138,12 @@ export function SignatureSidebar({ documentId }: SignatureSidebarProps) {
           </div>
         </div>
       ) : (
-        <div class="flex flex-1 items-center justify-center p-4">
-          <div class="flex max-w-[180px] flex-col items-center gap-3 text-center">
-            <Icon icon="signature" className="text-fg-muted h-12 w-12" />
-            <div class="text-fg-secondary text-sm">
-              {translate('signature.emptyState', {
-                fallback: 'No signatures yet. Create one to get started.',
-              })}
-            </div>
+        <div class="text-fg-muted mt-8 flex flex-col items-center gap-2 p-4">
+          <Icon icon="signature" className="h-18 w-18 text-fg-muted opacity-50" />
+          <div class="text-fg-muted max-w-[180px] text-center text-sm">
+            {translate('signature.emptyState', {
+              fallback: 'No signatures yet. Create one to get started.',
+            })}
           </div>
         </div>
       )}
