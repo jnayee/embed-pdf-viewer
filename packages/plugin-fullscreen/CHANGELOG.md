@@ -1,5 +1,7 @@
 # @embedpdf/plugin-fullscreen
 
+## 2.13.0
+
 ## 2.12.1
 
 ## 2.12.0

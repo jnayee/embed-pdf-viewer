@@ -1,5 +1,11 @@
 # @embedpdf/plugin-annotation
 
+## 2.13.0
+
+### Patch Changes
+
+- [#579](https://github.com/embedpdf/embed-pdf-viewer/pull/579) by [@bobsingor](https://github.com/bobsingor) – Re-export patching utilities from `./patching` so dependent plugins (for example signature placement) can reuse the shared patch helpers.
+
 ## 2.12.1
 
 ### Patch Changes

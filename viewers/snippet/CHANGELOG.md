@@ -1,5 +1,11 @@
 # @embedpdf/snippet
 
+## 2.13.0
+
+### Patch Changes
+
+- [#579](https://github.com/embedpdf/embed-pdf-viewer/pull/579) by [@bobsingor](https://github.com/bobsingor) – Register the Signature plugin in the snippet viewer, add a create-signature modal and wire the signature sidebar to real entries, placement, and translations.
+
 ## 2.12.1
 
 ### Patch Changes
