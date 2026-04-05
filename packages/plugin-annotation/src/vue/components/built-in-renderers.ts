@@ -29,6 +29,7 @@ import type {
   FreeTextPreviewData,
   StampPreviewData,
 } from '@embedpdf/plugin-annotation';
+import { patching } from '@embedpdf/plugin-annotation';
 import type { BoxedAnnotationRenderer } from '../context';
 import { createRenderer } from '../context/renderer-registry';
 import LinkLockedMode from './annotations/link-locked.vue';
@@ -40,6 +41,7 @@ import LinePreview from './annotations/line-preview.vue';
 import PolylinePreview from './annotations/polyline-preview.vue';
 import PolygonPreview from './annotations/polygon-preview.vue';
 import FreeTextPreview from './annotations/free-text-preview.vue';
+import CalloutFreeTextPreview from './annotations/callout-free-text-preview.vue';
 import StampPreview from './annotations/stamp-preview.vue';
 
 import InkRenderer from './renderers/ink-renderer.vue';
@@ -49,6 +51,7 @@ import LineRenderer from './renderers/line-renderer.vue';
 import PolylineRenderer from './renderers/polyline-renderer.vue';
 import PolygonRenderer from './renderers/polygon-renderer.vue';
 import FreeTextRenderer from './renderers/free-text-renderer.vue';
+import CalloutFreeTextRenderer from './renderers/callout-free-text-renderer.vue';
 import StampRenderer from './renderers/stamp-renderer.vue';
 import LinkRenderer from './renderers/link-renderer.vue';
 import HighlightRenderer from './renderers/highlight-renderer.vue';
@@ -179,9 +182,23 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
   }),
 
   createRenderer<PdfFreeTextAnnoObject, FreeTextPreviewData>({
+    id: 'freeTextCallout',
+    matches: (a): a is PdfFreeTextAnnoObject =>
+      a.type === PdfAnnotationSubtype.FREETEXT && a.intent === 'FreeTextCallout',
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT && !!p.data.calloutLine,
+    component: CalloutFreeTextRenderer,
+    renderPreview: CalloutFreeTextPreview,
+    vertexConfig: patching.calloutVertexConfig,
+    interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: false },
+    isDraggable: (toolDraggable, { isEditing }) => toolDraggable && !isEditing,
+    onDoubleClick: (id, setEditingId) => setEditingId(id),
+  }),
+
+  createRenderer<PdfFreeTextAnnoObject, FreeTextPreviewData>({
     id: 'freeText',
-    matches: (a): a is PdfFreeTextAnnoObject => a.type === PdfAnnotationSubtype.FREETEXT,
-    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT,
+    matches: (a): a is PdfFreeTextAnnoObject =>
+      a.type === PdfAnnotationSubtype.FREETEXT && a.intent !== 'FreeTextCallout',
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT && !p.data.calloutLine,
     component: FreeTextRenderer,
     renderPreview: FreeTextPreview,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },

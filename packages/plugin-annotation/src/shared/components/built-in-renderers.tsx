@@ -29,6 +29,8 @@ import { Polyline } from './annotations/polyline';
 import { Polygon } from './annotations/polygon';
 import { Text } from './annotations/text';
 import { FreeText } from './annotations/free-text';
+import { CalloutFreeText } from './annotations/callout-free-text';
+import { CalloutFreeTextPreview } from './annotations/callout-free-text-preview';
 import { Stamp } from './annotations/stamp';
 import { Link } from './annotations/link';
 import { Highlight } from './text-markup/highlight';
@@ -47,6 +49,7 @@ import {
   PolygonPreviewData,
   FreeTextPreviewData,
   StampPreviewData,
+  patching,
 } from '@embedpdf/plugin-annotation';
 
 export const builtInRenderers: BoxedAnnotationRenderer[] = [
@@ -279,12 +282,62 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: false, isResizable: false, isRotatable: false },
   }),
 
+  // --- Callout FreeText (must appear before regular FreeText to match first) ---
+
+  createRenderer<PdfFreeTextAnnoObject, FreeTextPreviewData>({
+    id: 'freeTextCallout',
+    matches: (a): a is PdfFreeTextAnnoObject =>
+      a.type === PdfAnnotationSubtype.FREETEXT && a.intent === 'FreeTextCallout',
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT && !!p.data.calloutLine,
+    render: ({
+      annotation,
+      currentObject,
+      isSelected,
+      isEditing,
+      scale,
+      pageIndex,
+      documentId,
+      onClick,
+      appearanceActive,
+    }) => (
+      <CalloutFreeText
+        documentId={documentId}
+        isSelected={isSelected}
+        isEditing={isEditing}
+        annotation={{ ...annotation, object: currentObject }}
+        pageIndex={pageIndex}
+        scale={scale}
+        onClick={onClick}
+        appearanceActive={appearanceActive}
+      />
+    ),
+    renderPreview: ({ data, bounds, scale }) => (
+      <CalloutFreeTextPreview
+        calloutLine={data.calloutLine}
+        textBox={data.textBox}
+        bounds={bounds}
+        scale={scale}
+        strokeColor={data.strokeColor}
+        strokeWidth={data.strokeWidth}
+        color={data.color}
+        backgroundColor={data.backgroundColor}
+        opacity={data.opacity}
+        lineEnding={data.lineEnding}
+      />
+    ),
+    vertexConfig: patching.calloutVertexConfig,
+    interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: false },
+    isDraggable: (toolDraggable, { isEditing }) => toolDraggable && !isEditing,
+    onDoubleClick: (id, setEditingId) => setEditingId(id),
+  }),
+
   // --- FreeText ---
 
   createRenderer<PdfFreeTextAnnoObject, FreeTextPreviewData>({
     id: 'freeText',
-    matches: (a): a is PdfFreeTextAnnoObject => a.type === PdfAnnotationSubtype.FREETEXT,
-    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT,
+    matches: (a): a is PdfFreeTextAnnoObject =>
+      a.type === PdfAnnotationSubtype.FREETEXT && a.intent !== 'FreeTextCallout',
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT && !p.data.calloutLine,
     render: ({
       annotation,
       currentObject,

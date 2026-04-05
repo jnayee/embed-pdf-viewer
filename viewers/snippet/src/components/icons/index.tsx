@@ -18,6 +18,7 @@ import { ChevronRightIcon } from './chevron-right';
 import { ChevronLeftIcon } from './chevron-left';
 import { ChevronDownIcon } from './chevron-down';
 import { SearchIcon } from './search';
+import { CalloutIcon } from './callout';
 import { CommentIcon } from './comment';
 import { SidebarIcon } from './sidebar';
 import { DotsIcon } from './dots';
@@ -121,6 +122,7 @@ export const icons: Icons = {
   chevronLeft: ChevronLeftIcon,
   chevronDown: ChevronDownIcon,
   search: SearchIcon,
+  callout: CalloutIcon,
   comment: CommentIcon,
   sidebar: SidebarIcon,
   dots: DotsIcon,

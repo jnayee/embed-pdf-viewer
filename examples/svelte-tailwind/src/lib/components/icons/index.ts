@@ -74,3 +74,4 @@ export { default as FormSelectIcon } from './FormSelectIcon.svelte';
 export { default as FormListboxIcon } from './FormListboxIcon.svelte';
 export { default as WidgetEditIcon } from './WidgetEditIcon.svelte';
 export { default as RubberStampIcon } from './RubberStampIcon.svelte';
+export { default as CalloutIcon } from './CalloutIcon.svelte';

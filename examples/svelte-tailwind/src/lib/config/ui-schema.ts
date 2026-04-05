@@ -321,6 +321,12 @@ export const viewerUISchema: UISchema = {
               variant: 'icon',
             },
             {
+              type: 'command-button',
+              id: 'add-callout',
+              commandId: 'annotation:add-callout',
+              variant: 'icon',
+            },
+            {
               type: 'divider',
               id: 'divider-6',
               orientation: 'vertical',
@@ -833,6 +839,11 @@ export const viewerUISchema: UISchema = {
           type: 'command',
           id: 'annotation:add-comment',
           commandId: 'annotation:add-comment',
+        },
+        {
+          type: 'command',
+          id: 'annotation:add-callout',
+          commandId: 'annotation:add-callout',
         },
         {
           type: 'command',
