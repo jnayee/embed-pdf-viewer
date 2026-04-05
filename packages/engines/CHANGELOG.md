@@ -1,5 +1,11 @@
 # @embedpdf/engines
 
+## 2.14.0
+
+### Minor Changes
+
+- [#581](https://github.com/embedpdf/embed-pdf-viewer/pull/581) by [@bobsingor](https://github.com/bobsingor) – Support callout free text in the PDFium executor: read/write `/CL`, `/LE`, `/IT`, stroke width and colors, `/TextColor`, and remap rectangle differences (`/RD`) between native PDFium order and the model shape.
+
 ## 2.13.0
 
 ## 2.12.1

@@ -1,5 +1,11 @@
 # @embedpdf/models
 
+## 2.14.0
+
+### Minor Changes
+
+- [#581](https://github.com/embedpdf/embed-pdf-viewer/pull/581) by [@bobsingor](https://github.com/bobsingor) – Extend free text annotation typing for callouts: add `PdfAnnotationColorType.TextColor` and optional `calloutLine`, `lineEnding`, `strokeWidth`, and `strokeColor` on `PdfFreeTextAnnoObject`.
+
 ## 2.13.0
 
 ## 2.12.1

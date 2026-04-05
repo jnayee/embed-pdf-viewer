@@ -1,5 +1,11 @@
 # @embedpdf/pdfium
 
+## 2.14.0
+
+### Minor Changes
+
+- [#581](https://github.com/embedpdf/embed-pdf-viewer/pull/581) by [@bobsingor](https://github.com/bobsingor) – Expose EmbedPDF callout line helpers in the WASM bindings (`EPDFAnnot_GetCalloutLineCount`, `EPDFAnnot_GetCalloutLine`, `EPDFAnnot_SetCalloutLine`) and refresh bundled `pdfium.js` / `pdfium.cjs` / `pdfium.wasm`.
+
 ## 2.13.0
 
 ## 2.12.1

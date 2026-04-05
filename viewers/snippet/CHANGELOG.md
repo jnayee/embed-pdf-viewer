@@ -1,5 +1,11 @@
 # @embedpdf/snippet
 
+## 2.14.0
+
+### Minor Changes
+
+- [#581](https://github.com/embedpdf/embed-pdf-viewer/pull/581) by [@bobsingor](https://github.com/bobsingor) – Wire callout into the snippet viewer: callout icon, `annotation:add-callout` command, annotation toolbar and overflow menu entries, translations, and sidebar property schema for `freeTextCallout` (including opaque stroke color control).
+
 ## 2.13.0
 
 ### Patch Changes

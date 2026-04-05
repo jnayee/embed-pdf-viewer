@@ -1,5 +1,11 @@
 # @embedpdf/plugin-annotation
 
+## 2.14.0
+
+### Minor Changes
+
+- [#581](https://github.com/embedpdf/embed-pdf-viewer/pull/581) by [@bobsingor](https://github.com/bobsingor) – Add callout free text (`FreeTextCallout`): creation handler and preview data, vertex config and patch pipeline, default `freeTextCallout` tool, and built-in renderers for React, Vue, and Svelte (including preview components and shared `calloutVertexConfig`).
+
 ## 2.13.0
 
 ### Patch Changes
