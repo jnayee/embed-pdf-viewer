@@ -1043,7 +1043,7 @@ export const viewerUISchema: UISchema = {
           groups: [
             {
               id: 'cjk-languages',
-              locales: ['zh-CN', 'ja'],
+              locales: ['zh-CN', 'zh-TW', 'ja'],
               breakpoints: {
                 sm: {
                   replaceHide: ['mode:view', 'mode:annotate', 'mode:shapes', 'mode:insert'],
