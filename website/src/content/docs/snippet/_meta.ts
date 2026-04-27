@@ -4,4 +4,5 @@ export default {
   theme: 'Theme',
   'customizing-ui': 'Customizing the UI',
   security: 'Security & Permissions',
+  airgapped: 'Running Airgapped',
 }

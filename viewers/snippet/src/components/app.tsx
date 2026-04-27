@@ -1,5 +1,6 @@
 import { h, Fragment } from 'preact';
-import { useMemo } from 'preact/hooks';
+import type { JSX } from 'preact';
+import { useEffect, useMemo } from 'preact/hooks';
 import styles from '../styles/index.css';
 import { EmbedPDF } from '@embedpdf/core/preact';
 import { createPluginRegistration, PluginRegistry, PermissionConfig } from '@embedpdf/core';
@@ -128,6 +129,7 @@ import { WidgetEditSidebar } from '@/components/widget-edit-sidebar';
 import { RubberStampSidebar } from '@/components/rubber-stamp-sidebar';
 import { SignatureSidebar } from '@/components/signature-sidebar';
 import { SignatureCreateModal } from '@/components/signature-create-modal';
+import { SnippetConfigProvider } from '@/components/snippet-config-context';
 import { SchemaSelectionMenu } from '@/ui/schema-selection-menu';
 import { SchemaOverlay } from '@/ui/schema-overlay';
 import { PrintModal } from '@/components/print-modal';
@@ -158,10 +160,65 @@ import { Capture } from '@/components/capture';
 import { ProtectModal } from './protect-modal';
 import { UnlockOwnerOverlay } from './unlock-owner-overlay';
 import { ViewPermissionsModal } from './view-permissions-modal';
+import { ensureFontStylesheet } from './font-loader';
+import { resolveUiFontConfig } from './font-config';
 
 // ============================================================================
 // Main Configuration Interface - Uses actual plugin config types directly
 // ============================================================================
+
+export interface SnippetFontStylesheetConfig {
+  /**
+   * Stylesheet URL to register at document scope.
+   * Omit (or set to `null`) to skip the `<link>` entirely — useful when the
+   * fonts are already loaded elsewhere or when you want to rely on the CSS
+   * `font-family` fallback stack.
+   */
+  stylesheetUrl?: string | null;
+}
+
+export interface SnippetUiFontConfig extends SnippetFontStylesheetConfig {
+  /**
+   * CSS font-family used by the viewer UI.
+   * Defaults to `'Open Sans', system-ui, sans-serif`.
+   */
+  family?: string;
+}
+
+/**
+ * Fonts shown in the "Type" tab of the Create Signature modal.
+ * UI-only concern; not part of the signature plugin config.
+ */
+export interface SnippetSignatureFontConfig extends SnippetFontStylesheetConfig {
+  /**
+   * Font list shown in the "Type" tab's font picker.
+   * Defaults to Caveat / Dancing Script / Great Vibes / Pacifico.
+   */
+  fonts?: Array<{ name: string; family: string }>;
+}
+
+/**
+ * Controls the snippet's external webfont loading. Every field is opt-out:
+ * omit for the built-in Google Fonts defaults, or set to `null` to skip the
+ * external request and fall through to the CSS font-family fallback stack.
+ */
+export interface SnippetFontsConfig {
+  /**
+   * Stylesheet URL for the snippet UI font (Open Sans by default).
+   * - `undefined`: loads Open Sans from Google Fonts at init.
+   * - `null`: skip the `<link>`; the UI falls back to the system font stack.
+   * - object: override the UI font family and/or stylesheet URL.
+   */
+  ui?: SnippetUiFontConfig | null;
+
+  /**
+   * Fonts for the "Type" tab of the Create Signature modal.
+   * - `undefined`: loads the 4 cursive families from Google Fonts on first open.
+   * - `null`: skip the `<link>`; typed signatures use the OS cursive stack.
+   * - object: self-host / override `stylesheetUrl` and/or `fonts`.
+   */
+  signature?: SnippetSignatureFontConfig | null;
+}
 
 export interface PDFViewerConfig {
   // === Document Source (optional) ===
@@ -295,6 +352,13 @@ export interface PDFViewerConfig {
   // Signatures
   /** Signature options (mode, default size) */
   signature?: Partial<SignaturePluginConfig>;
+
+  // Fonts (snippet-level webfont loading)
+  /**
+   * Controls external webfonts loaded by the snippet UI. See `SnippetFontsConfig`.
+   * Useful for GDPR-sensitive, airgapped, or self-hosted deployments.
+   */
+  fonts?: SnippetFontsConfig;
 
   // Infrastructure
   /** History/undo options */
@@ -546,18 +610,26 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
     [],
   );
 
+  const uiFont = resolveUiFontConfig(config.fonts?.ui);
+  const uiFontStyle = useMemo(() => ({ '--ep-font-family': uiFont.family }), [uiFont.family]);
+
+  useEffect(() => {
+    if (!uiFont.stylesheetUrl) return;
+    ensureFontStylesheet('ui', uiFont.stylesheetUrl, [uiFont.family]);
+  }, [uiFont.family, uiFont.stylesheetUrl]);
+
   if (!engine || isLoading)
     return (
-      <>
+      <div className="embedpdf-snippet-root" style={uiFontStyle}>
         <style>{styles}</style>
         <div className="flex h-full w-full items-center justify-center">
           <LoadingIndicator size="lg" text="Initializing PDF engine..." />
         </div>
-      </>
+      </div>
     );
 
   return (
-    <>
+    <div className="embedpdf-snippet-root" style={uiFontStyle}>
       <style>{styles}</style>
       <EmbedPDF
         config={{
@@ -675,16 +747,21 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
             {pluginsReady ? (
               <>
                 {activeDocumentId ? (
-                  <UIProvider
-                    documentId={activeDocumentId}
-                    components={uiComponents}
-                    renderers={uiRenderers}
-                    className="relative flex h-full w-full select-none flex-col"
-                  >
-                    <ViewerLayout documentId={activeDocumentId} tabBarVisibility={config.tabBar} />
-                    <Capture documentId={activeDocumentId} />
-                    <HintLayer documentId={activeDocumentId} />
-                  </UIProvider>
+                  <SnippetConfigProvider config={config}>
+                    <UIProvider
+                      documentId={activeDocumentId}
+                      components={uiComponents}
+                      renderers={uiRenderers}
+                      className="relative flex h-full w-full select-none flex-col"
+                    >
+                      <ViewerLayout
+                        documentId={activeDocumentId}
+                        tabBarVisibility={config.tabBar}
+                      />
+                      <Capture documentId={activeDocumentId} />
+                      <HintLayer documentId={activeDocumentId} />
+                    </UIProvider>
+                  </SnippetConfigProvider>
                 ) : (
                   <EmptyState />
                 )}
@@ -697,6 +774,6 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
           </>
         )}
       </EmbedPDF>
-    </>
+    </div>
   );
 }
