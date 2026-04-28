@@ -1,6 +1,6 @@
 ---
 title: Running Airgapped / Offline
-description: Configure the EmbedPDF Snippet to run without any external network requests — for GDPR-sensitive, high-availability, or fully offline deployments.
+description: Configure the EmbedPDF Snippet to run without any external network requests.
 searchable: true
 ---
 
@@ -8,11 +8,7 @@ import { Callout } from '@/components/callout'
 
 # Running Airgapped / Offline
 
-By default, the EmbedPDF Snippet is optimized for a zero-config developer experience and pulls a handful of assets from public CDNs. That's convenient in most setups, but it's usually not what you want for:
-
-- **GDPR-sensitive deployments**, where requests to third-party servers (Google Fonts, jsDelivr) may leak end-user IP addresses without consent.
-- **High-availability applications**, where you don't want a critical feature to depend on an external service.
-- **Network-restricted environments**, such as intranets or airgapped infrastructure.
+By default, the EmbedPDF Snippet is optimized for a zero-config developer experience and pulls a handful of assets from public CDNs. For network-restricted environments, such as intranets or airgapped infrastructure, you can redirect or disable those external requests.
 
 This guide walks through every CDN default in the snippet and shows how to redirect or disable each one.
 
@@ -81,10 +77,6 @@ EmbedPDF.init({
 ```
 
 See the individual font package READMEs (`@embedpdf/fonts-jp`, `@embedpdf/fonts-sc`, `@embedpdf/fonts-tc`, `@embedpdf/fonts-kr`, `@embedpdf/fonts-arabic`, `@embedpdf/fonts-hebrew`, `@embedpdf/fonts-latin`) for the exact file names and recommended weights.
-
-### Option C — Mirror the jsDelivr URLs
-
-If you simply want the same CDN config pointed at your own mirror, copy the structure from `createCdnFontConfig` in `@embedpdf/engines` and rewrite the hostnames.
 
 ## 3. Configure or opt out of webfonts
 
