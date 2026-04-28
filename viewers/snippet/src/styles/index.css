@@ -1,5 +1,8 @@
 @import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap');
+
+/* Webfonts are registered at document scope by `PDFViewer`. The UI family is
+   applied via `--ep-font-family` so integrators can swap the viewer font
+   independently from the stylesheet URL. */
 
 /* ─────────────────────────────────────────────────────────
    Theme System - Tailwind 4 CSS Custom Properties
@@ -96,9 +99,18 @@
   overflow: hidden;
   width: 100%;
   height: 100%;
-  font-family: 'Open Sans', system-ui, sans-serif;
+  --ep-font-family: 'Open Sans', system-ui, sans-serif;
+  font-family: var(--ep-font-family);
   color: var(--ep-foreground-primary);
   background-color: var(--ep-background-surface);
+}
+
+.embedpdf-snippet-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family: var(--ep-font-family);
 }
 
 /* ─────────────────────────────────────────────────────────

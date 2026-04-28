@@ -66,20 +66,23 @@ export function CustomZoomToolbar({ documentId }: CustomZoomToolbarProps) {
     <div className="relative">
       <div className="bg-interactive-hover flex items-center rounded">
         {/* Editable Zoom Percentage Input */}
-        <form onSubmit={handleZoomChange} className="block">
+        <form
+          onSubmit={handleZoomChange}
+          className="flex min-w-0 flex-nowrap items-center overflow-hidden whitespace-nowrap"
+        >
           <input
             name="zoom"
             type="text"
             inputMode="numeric"
             pattern="\d*"
-            className="h-6 w-8 border-0 bg-transparent p-0 text-right text-sm outline-none focus:outline-none"
+            className="h-6 w-8 min-w-0 shrink border-0 bg-transparent p-0 text-right text-sm outline-none focus:outline-none"
             aria-label="Set zoom"
             autoFocus={false}
             value={inputValue}
             onInput={handleInputChange}
             onBlur={handleBlur}
           />
-          <span className="text-sm">%</span>
+          <span className="shrink-0 text-sm">%</span>
         </form>
         <CommandButton
           commandId="zoom:toggle-menu"
